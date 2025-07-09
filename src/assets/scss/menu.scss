@@ -1,0 +1,129 @@
+
+
+/* ----- Menu Container ----- */
+.drawing-menu {
+  position: absolute;
+  background-color: #ffffff;
+  border-radius: 4px; /* Giảm bo góc một chút */
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0,0,0,0.08); /* Giảm bóng đổ */
+  padding: 2px; /* Giảm padding bên trong menu */
+  list-style: none;
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px; /* Giảm khoảng cách giữa các item */
+  z-index: 1000;
+  user-select: none;
+}
+
+/* ----- Menu Items (li) ----- */
+.drawing-menu .toolSelect {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ----- Menu Links (a) ----- */
+.drawing-menu .toolSelect a {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;  /* << GIẢM KÍCH THƯỚC NÚT */
+  height: 32px; /* << GIẢM KÍCH THƯỚC NÚT */
+  border-radius: 4px; /* Giảm bo góc nút */
+  background-color: #f0f0f0;
+  color: #333;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.1s ease;
+  text-decoration: none;
+  border: 1px solid transparent;
+  padding: 02px;
+}
+
+/* Styling cho SVG icons bên trong <a> */
+.drawing-menu .toolSelect a svg {
+  width: 22px;  /* << GIẢM KÍCH THƯỚC ICON */
+  height: 22px; /* << GIẢM KÍCH THƯỚC ICON */
+  stroke-width: 2; /* Có thể giữ nguyên hoặc giảm nhẹ nếu icon trông quá dày */
+  stroke: #333;
+  fill: none;
+  pointer-events: none;
+}
+
+.drawing-menu .toolSelect a:hover {
+  background-color: #e0e0e0;
+}
+/* Tùy chọn: đổi màu icon khi hover nút
+.drawing-menu .toolSelect a:hover svg {
+  stroke: #000;
+}
+*/
+
+.drawing-menu .toolSelect a:active { /* Khi đang nhấn chuột xuống */
+  background-color: #d0d0d0;
+  transform: scale(0.95);
+}
+
+/* ----- Styling cho Tool được chọn (khi thẻ <a> có class "active") ----- */
+.drawing-menu .toolSelect a.tool.active {
+  background-color: #e0e0e0; /* Hoặc màu nền khác cho nút active */
+}
+
+.drawing-menu .toolSelect a.tool.active svg {
+  stroke: #ff0000; /* MÀU ĐỎ CHO ICON CỦA TOOL ĐANG ACTIVE */
+}
+
+
+/* ----- Move Icon Specific Styling ----- */
+.drawing-menu .toolSelect a#move {
+  cursor: grab;
+}
+.drawing-menu .toolSelect a#move:active {
+  cursor: grabbing;
+}
+.drawing-menu .toolSelect a#move.active svg {
+  stroke: #333; /* Giữ màu mặc định cho icon move nếu nó có class active */
+}
+
+
+/* ----- Color Input Styling ----- */
+/* Điều chỉnh kích thước cho input màu để phù hợp với menu nhỏ hơn */
+.drawing-menu .toolSelect a.color {
+  padding: 0;
+  background-color: transparent;
+  border: none;
+  /* Đảm bảo thẻ a chứa input màu cũng có kích thước phù hợp */
+  width: 32px;  /* Phù hợp với các nút khác */
+  height: 32px; /* Phù hợp với các nút khác */
+}
+.drawing-menu .toolSelect a.color:hover {
+  background-color: transparent;
+}
+
+#inputColor {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  width: 30px;  /* << GIẢM KÍCH THƯỚC INPUT MÀU (nhỏ hơn thẻ a một chút do border) */
+  height: 30px; /* << GIẢM KÍCH THƯỚC INPUT MÀU */
+  background-color: transparent;
+  border: 1px solid #ccc;
+  border-radius: 4px; /* Giảm bo góc input */
+  cursor: pointer;
+  padding: 0;
+  box-sizing: border-box;
+  /* Căn giữa input trong thẻ <a> nếu thẻ <a> lớn hơn một chút */
+  /* margin: auto; (nếu a.color là flex container và input là flex item) */
+}
+#inputColor::-webkit-color-swatch-wrapper {
+  padding: 0;
+  border-radius: 3px; /* Giảm bo góc swatch */
+}
+#inputColor::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px; /* Giảm bo góc swatch */
+}
+#inputColor::-moz-color-swatch {
+  border: none;
+  border-radius: 3px; /* Giảm bo góc swatch */
+}
