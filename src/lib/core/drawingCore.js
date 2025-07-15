@@ -1,4 +1,7 @@
+import Tesseract from 'tesseract.js';
 import Croppr from "../croppr";
+import Modal from "../ui/Modal";
+import Notifier from '../ui/notificationManager';
 import {
   PencilTool,
   MarkerTool,
@@ -43,7 +46,7 @@ export default class DrawingCore {
     this.menu = null;
     this.canvasPic = new Image();
     this.canvasPic.crossOrigin = "Anonymous";
-
+    this.isCropperVisible = false;
     this.init();
   }
 
@@ -155,25 +158,31 @@ export default class DrawingCore {
     document.body.appendChild(this.cropperImageElement);
 
     this.cropper = new Croppr(this.cropperImageElement, {
-      startSize: [50, 50, "%"],
+      startSize: [0, 0, "%"],
       onInitialize: (instance) => {
         if (!document.getElementById("imageTemp")) {
           instance.regionEl.parentNode.appendChild(this.canvas);
         }
+        let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
+        if(cropprHandleContainer) cropprHandleContainer[0].classList.add('is-hidden');
         requestAnimationFrame(() => {
           const regionEl = this.cropper.regionEl;
           if (regionEl && regionEl.clientWidth > 0) {
-            this.menu.createMenu(
-              regionEl.offsetTop,
-              regionEl.offsetLeft
-            );
-            const menuHeight = this.menu.menuElement.clientHeight;
-            this.menu.setPosition(
-              regionEl.offsetLeft,
-              regionEl.offsetTop - menuHeight,
-              regionEl
-            );
-            this._setupMenuHandlers();
+            // this.menu.createMenu(
+            //   regionEl.offsetTop,
+            //   regionEl.offsetLeft
+            // );
+            // const menuHeight = this.menu.menuElement.clientHeight;
+            // this.menu.setPosition(
+            //   regionEl.offsetLeft,
+            //   regionEl.offsetTop - menuHeight,
+            //   regionEl
+            // );
+            // //this._hideCropperAndMenu();
+            // this._setupMenuHandlers();
+            
+            let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
+            if(cropprHandleContainer) cropprHandleContainer.style.display = 'none';
 
             //const rect = this.canvaso.getBoundingClientRect();
             // const zoomX = rect.width > 0 ? this.canvaso.offsetWidth / rect.width : 1;
@@ -195,11 +204,25 @@ export default class DrawingCore {
         this.cropprY = data.y;
         this.cropprWidth = data.width;
         this.cropprHeight = data.height;
-
+        if(this.menu && this.menu.menuElement) return;
+        this.menu.createMenu(
+          data.x,
+          data.y,
+        );
+        let menuHeight = this.menu.menuElement.clientHeight;
+        this.menu.setPosition(
+          data.x,
+          data.y - menuHeight,
+          this.menu.menuElement
+        );
+        let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
+        if(cropprHandleContainer) cropprHandleContainer[0].classList.remove('is-hidden');
+        this._setupMenuHandlers();
         // this.cropImage();
       },
       onCropMove: (data) => {
         requestAnimationFrame(() => {
+          
           if (this.menu && this.menu.menuElement) {
             let menuHeight = this.menu.menuElement.clientHeight;
             this.menu.setPosition(
@@ -207,11 +230,13 @@ export default class DrawingCore {
               data.y - menuHeight,
               this.menu.menuElement
             );
-          }
+          } 
         });
       },
     });
   };
+
+  
 
   _setupMenuHandlers = () => {
     const toolSelectLinks = document.querySelectorAll(".toolSelect a");
@@ -270,6 +295,7 @@ export default class DrawingCore {
 
   _handleActions = (id) => {
     if (id === "save") this._saveImage();
+    else if (id === "ocr") this._runOCROnCroppedArea();
     else this._copyImageToClipboard();
   };
 
@@ -283,24 +309,161 @@ export default class DrawingCore {
     });
   };
 
+
+  _runOCROnCroppedArea = () => {
+    this._showOCRIndicator('Recognizing text...');
+
+    // Gọi cropImage để lấy ảnh dưới dạng Data URL
+    this.cropImage((destCanvas) => {
+        if (!destCanvas) {
+          console.error("Failed to get cropped image for OCR.");
+          this._hideOCRIndicator("OCR Failed!");
+            return;
+        }
+
+        // Sử dụng Tesseract để nhận dạng văn bản từ Data URL
+        let dataUrl = destCanvas.toDataURL("image/png");
+        Tesseract.recognize(
+            dataUrl,
+            'eng', // Ngôn ngữ nhận dạng, ví dụ: 'eng' (tiếng Anh), 'vie' (tiếng Việt)
+            { 
+                logger: m => {
+                    // Hiển thị tiến trình cho người dùng
+                    if (m.status === 'recognizing text') {
+                        const progress = (m.progress * 100).toFixed(0);
+                        this._showOCRIndicator(`Recognizing... ${progress}%`);
+                    }
+                } 
+            }
+        ).then(({ data: { text } }) => {
+            console.log("Recognized Text:", text);
+            this._hideOCRIndicator("Done!");
+            
+            // Hiển thị kết quả cho người dùng
+            this._handleOCRResult(text);
+
+        }).catch(err => {
+            console.error("Tesseract Error:", err);
+            this._hideOCRIndicator("OCR Error!");
+        });
+
+    });
+  }
+
+   /**
+     * Xử lý kết quả văn bản nhận dạng được bằng cách hiển thị một modal.
+     * @private
+     * @param {string} text - Văn bản đã được nhận dạng.
+     */
+    _handleOCRResult = (text) => {
+        const trimmedText = text.trim();
+        if (!trimmedText) {
+            // Có thể tạo một modal thông báo đơn giản
+            new Modal({
+                title: "OCR Result",
+                content: "No text could be recognized in the selected area.",
+                actions: [{ label: 'Close', className: 'primary', onClick: modal => modal.close() }]
+            });
+            return;
+        }
+
+        // Tạo một textarea để hiển thị kết quả và cho phép người dùng chỉnh sửa
+        const contentElement = document.createElement('textarea');
+        contentElement.className = 'ocr-result-textarea';
+        contentElement.value = trimmedText;
+
+        // Tạo và hiển thị modal
+        new Modal({
+            title: "Recognized Text",
+            content: contentElement,
+            actions: [
+                {
+                    label: "Cancel",
+                    onClick: (modal) => {
+                        modal.close();
+                    }
+                },
+                {
+                    label: "Copy Text",
+                    className: "primary", // Style nút chính
+                    onClick: (modal) => {
+                        navigator.clipboard.writeText(contentElement.value).then(() => {
+                            //this._showToolSizeIndicator(" Copied to clipboard!");
+                            Notifier.show({ message: `Copied to clipboard!`, type: 'success' });
+                            modal.close(); // Đóng modal sau khi copy
+                        }).catch(err => {
+                            console.error("Failed to copy text:", err);
+                            Notifier.show({ message: `Failed to copy text`, type: 'error' });
+                            // Có thể hiển thị lỗi ngay trong modal
+                        });
+                    }
+                }
+            ]
+        });
+    }
+
+  /**
+   * Hiển thị một indicator toàn màn hình cho quá trình OCR.
+   * @private
+   * @param {string} message - Thông điệp cần hiển thị.
+   */
+  _showOCRIndicator = (message) => {
+    if (!this.ocrIndicator) {
+      this.ocrIndicator = document.createElement('div');
+      Object.assign(this.ocrIndicator.style, {
+        position: 'fixed',
+        top: '0', left: '0',
+        width: '100vw', height: '100vh',
+        backgroundColor: 'transparent',
+        color: 'black',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: '24px',
+        fontFamily: 'sans-serif',
+        zIndex: '10001',
+        transition: 'opacity 0.3s'
+      });
+      document.body.appendChild(this.ocrIndicator);
+    }
+    this.ocrIndicator.textContent = message;
+    this.ocrIndicator.style.opacity = '1';
+    this.ocrIndicator.style.display = 'flex';
+  }
+
+  _hideOCRIndicator = (finalMessage) => {
+    if (!this.ocrIndicator) return;
+    this.ocrIndicator.textContent = finalMessage;
+    setTimeout(() => {
+        if (this.ocrIndicator) {
+            this.ocrIndicator.style.opacity = '0';
+            setTimeout(() => {
+                if (this.ocrIndicator) this.ocrIndicator.style.display = 'none';
+            }, 300);
+        }
+    }, 1500);
+  }
+
+
   /**
    * Crops the image and copies it to the user's clipboard.
    * @private
    */
+  
   _copyImageToClipboard = () => {
     // Gọi cropImage và truyền vào một callback để xử lý blob dữ liệu ảnh
     this.cropImage((destCanvas) => {
       if (!destCanvas) {
         console.error("Failed to generate image blob for copying.");
-        // (Tùy chọn) Hiển thị thông báo lỗi cho người dùng
-        this._showToolSizeIndicator("Copy Failed!");
+        // (Tùy chọn) Hiển thị thông báo lỗi cho người dùng        
+        Notifier.show({ message: `Failed to copy image to clipboard`, type: 'error' });
         return;
       }
 
       destCanvas.toBlob((blob) => {
         if (!blob) {
           console.error("Failed to convert canvas to blob");
-          this._showToolSizeIndicator("Copy Failed!");
+          Notifier.show({ message: `Failed to copy image to clipboard`, type: 'error' });
           return;
         }
 
@@ -309,12 +472,13 @@ export default class DrawingCore {
         navigator.clipboard
           .write([item])
           .then(() => {
-            console.log("Image copied to clipboard successfully!");
-            this._showToolSizeIndicator("Copied!");
+            console.log("Image copied to clipboard successfully!");           
+            Notifier.show({ message: `Copied to clipboard!`, type: 'success' });
           })
           .catch((err) => {
             console.error("Failed to copy image to clipboard:", err);
-            this._showToolSizeIndicator("Copy Failed!");
+            Notifier.show({ message: `Failed to copy image to clipboard`, type: 'error' });
+            
           });
       }, "image/png");
     });
@@ -338,6 +502,7 @@ export default class DrawingCore {
       const amount = 2;
       if (direction > 0) this.tool.decreaseFontSize(amount);
       else this.tool.increaseFontSize(amount);
+      //Notifier.show({ message: `Font Size: ${this.tool.currentFontSizePx}` });
       this._showToolSizeIndicator(`Font Size: ${this.tool.currentFontSizePx}`);
     } else {
       const amount = ev.shiftKey ? 5 : 1;

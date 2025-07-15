@@ -218,6 +218,7 @@ export default class Menu {
             { id: 'redo', title: 'Redo', type: 'control', icon: feather.icons['corner-up-right'].toSvg() },
             { id: 'save', title: 'Save', type: 'action', icon: feather.icons.save.toSvg() },
             { id: 'copy', title: 'Copy to Clipboard', type: 'action', icon: feather.icons.copy.toSvg() },
+            { id: 'ocr', title: 'Recognize Text', type: 'action', icon: feather.icons['file-text'].toSvg() },
             { id: 'move', title: 'Move', type: 'move', icon: feather.icons.move.toSvg() },
         ];
     }
