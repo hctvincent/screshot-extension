@@ -79,8 +79,8 @@ export class MarkerTool {
         this.context.globalAlpha = 0.5; // Độ trong suốt đặc trưng của highlighter
         this.context.lineWidth = this.core.lineWidth * 2;
         this.context.strokeStyle = this.core.strokeStyle;
-        this.context.lineCap = 'butt'; // Đầu bút phẳng, giống highlighter
-        this.context.lineJoin = 'round'; // Các góc nối vẫn nên bo tròn để trông đẹp
+        this.context.lineCap = 'round';
+        this.context.lineJoin = 'round';
 
         this.context.beginPath();
         // Bắt đầu từ điểm đầu tiên

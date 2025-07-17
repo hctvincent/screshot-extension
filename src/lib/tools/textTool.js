@@ -89,6 +89,7 @@ export class TextTool {
         // Tạo các phần tử DOM để nhập liệu tại vị trí click
         this._createEditorElements(ev.clientX, ev.clientY);
     }
+    
 
     // --- Các phương thức nội bộ (Private-like methods) ---
 
@@ -108,7 +109,8 @@ export class TextTool {
         });
 
         this.textarea = document.createElement('textarea');
-        this.textarea.className = 'text-tool-textarea';
+        this.textarea.setAttribute('class', 'text-tool-textarea');
+        this.textarea.setAttribute('id', 'insertText');
         Object.assign(this.textarea.style, {
             padding: `${this.TEXTAREA_INTERNAL_PADDING_PX}px`,
             border: `${this.TEXTAREA_BORDER_PX}px dashed #888`,

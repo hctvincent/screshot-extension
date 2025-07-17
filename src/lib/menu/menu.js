@@ -205,6 +205,7 @@ export default class Menu {
      */
     _getDefaultMenuConfig() {
         return [
+            { id: 'move', title: 'Move', type: 'move', icon: feather.icons.move.toSvg() },
             { id: 'pencil', title: 'Pencil', type: 'tool', icon: feather.icons['edit-2'].toSvg() },
             { id: 'marker', title: 'Marker', type: 'tool', icon: feather.icons['edit-3'].toSvg() },
             { id: 'line', title: 'Line', type: 'tool', icon: feather.icons.minus.toSvg() },
@@ -219,7 +220,7 @@ export default class Menu {
             { id: 'save', title: 'Save', type: 'action', icon: feather.icons.save.toSvg() },
             { id: 'copy', title: 'Copy to Clipboard', type: 'action', icon: feather.icons.copy.toSvg() },
             { id: 'ocr', title: 'Recognize Text', type: 'action', icon: feather.icons['file-text'].toSvg() },
-            { id: 'move', title: 'Move', type: 'move', icon: feather.icons.move.toSvg() },
+            { id: 'close', title: 'Close', type: 'close', icon: feather.icons.x.toSvg() }
         ];
     }
 }

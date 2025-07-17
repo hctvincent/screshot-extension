@@ -109,6 +109,7 @@ export default class DrawingCore {
     const logicalY = mouseYInZoomedBox * zoomY;
     ev._x = logicalX;
     ev._y = logicalY;
+    
     const handler = this.tool ? this.tool[ev.type] : null;
     if (handler) {
       ev.preventDefault();
@@ -118,9 +119,37 @@ export default class DrawingCore {
         (ev.type === "mouseleave" && this.tool.isDrawing)
       ) {
         this.updateImage();
+        this.updateCursorPosition(ev);
+        this.showCursorDraw(true);
+        
       }
+
+      if (ev.type === "mousemove") {
+        this.updateCursorPosition(ev);
+        
+      }
+      if (ev.type === "mousedown") {
+       this.showCursorDraw(false);
+        
+      }
+      
     }
   };
+  resizeCursor(t) {
+    t.deltaY < 0 && this.lineWidth < 125 && (this.lineWidth++,
+    this.cursorDraw.style.width = this.lineWidth + "px",
+    this.cursorDraw.style.height = this.lineWidth + "px"),
+    t.deltaY > 0 && this.lineWidth > 1 && (this.lineWidth--,
+    this.cursorDraw.style.width = this.lineWidth + "px",
+    this.cursorDraw.style.height = this.lineWidth + "px")
+   }
+
+   updateCursorPosition(e) {
+    if (this.cursorDraw) {
+      this.cursorDraw.style.top = e.offsetY;
+      this.cursorDraw.style.left = e.offsetX;
+    }
+   }  
 
   updateImage = () => {
     this.contexto.save();
@@ -167,39 +196,24 @@ export default class DrawingCore {
         if(cropprHandleContainer) cropprHandleContainer[0].classList.add('is-hidden');
         requestAnimationFrame(() => {
           const regionEl = this.cropper.regionEl;
-          if (regionEl && regionEl.clientWidth > 0) {
-            // this.menu.createMenu(
-            //   regionEl.offsetTop,
-            //   regionEl.offsetLeft
-            // );
-            // const menuHeight = this.menu.menuElement.clientHeight;
-            // this.menu.setPosition(
-            //   regionEl.offsetLeft,
-            //   regionEl.offsetTop - menuHeight,
-            //   regionEl
-            // );
-            // //this._hideCropperAndMenu();
-            // this._setupMenuHandlers();
+          if (regionEl && regionEl.clientWidth > 0) {           
             
             let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
             if(cropprHandleContainer) cropprHandleContainer.style.display = 'none';
 
-            //const rect = this.canvaso.getBoundingClientRect();
-            // const zoomX = rect.width > 0 ? this.canvaso.offsetWidth / rect.width : 1;
-            // const zoomY = rect.height > 0 ? this.canvaso.offsetHeight / rect.height : 1;
+            
             this.cropprX = regionEl.offsetLeft;
             this.cropprY = regionEl.offsetTop;
             this.cropprWidth = regionEl.clientWidth;
             this.cropprHeight = regionEl.clientHeight;
+            
+            
+           
 
-            //this.cropImage();
           }
         });
       },
-      onCropEnd: (data) => {
-        //const rect = this.canvaso.getBoundingClientRect();
-        // const zoomX = rect.width > 0 ? this.canvaso.offsetWidth / rect.width : 1;
-        //const zoomY = rect.height > 0 ? this.canvaso.offsetHeight / rect.height : 1;
+      onCropEnd: (data) => {        
         this.cropprX = data.x;
         this.cropprY = data.y;
         this.cropprWidth = data.width;
@@ -211,14 +225,29 @@ export default class DrawingCore {
         );
         let menuHeight = this.menu.menuElement.clientHeight;
         this.menu.setPosition(
-          data.x,
-          data.y - menuHeight,
-          this.menu.menuElement
+          data.x / this.dpr,
+          (data.y - menuHeight-10) / this.dpr,
         );
         let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
         if(cropprHandleContainer) cropprHandleContainer[0].classList.remove('is-hidden');
         this._setupMenuHandlers();
-        // this.cropImage();
+        this.createCursorDraw();
+        this._handleKeyPress();
+        
+
+        // this.cropper.regionEl.addEventListener("dblclick", function(e)  {
+        //   this.cropper.box.move(0, 0)
+        //   this.cropper.box.resize(window.innerWidth, window.innerHeight, [0, 0])
+        //   const t = this.cropper.eventBus;
+        //   t.dispatchEvent(new CustomEvent("regionend", {
+        //       detail: {
+        //           mouseX: 0,
+        //           mouseY: 0
+        //       }
+        //   }))
+          
+
+        // }.bind(this));
       },
       onCropMove: (data) => {
         requestAnimationFrame(() => {
@@ -226,9 +255,8 @@ export default class DrawingCore {
           if (this.menu && this.menu.menuElement) {
             let menuHeight = this.menu.menuElement.clientHeight;
             this.menu.setPosition(
-              data.x,
-              data.y - menuHeight,
-              this.menu.menuElement
+              data.x / this.dpr,
+              (data.y - menuHeight-10) / this.dpr,
             );
           } 
         });
@@ -255,6 +283,9 @@ export default class DrawingCore {
         case "action":
           item.addEventListener("click", () => this._handleActions(id));
           break;
+        case "close":
+          item.addEventListener("click", () => this._handleClose());
+          break;
       }
     });
     const colorInput = document.getElementById("inputColor");
@@ -279,15 +310,65 @@ export default class DrawingCore {
       this.tool = null;
       this.canvas.style.zIndex = 0;
       this.showCropprHandles(true);
+      this.showCursorDraw(false);
     } else {
       toolSelectLinks.forEach((link) => link.classList.remove("active"));
       currentLink.classList.add("active");
       this.tool = new this.tools[id](this);
       this.canvas.style.zIndex = 10;
       this.showCropprHandles(false);
+      this.showCursorDraw(true);
     }
   };
 
+  
+  _handleKeyPress = () => {
+    document.addEventListener("keydown", t => {
+          if (t.ctrlKey && "KeyP" == t.code) {
+              document.getElementById("pencil").click()
+          }
+          if (t.ctrlKey && "KeyX" == t.code) {
+              document.getElementById("marker").click()
+          }
+          if (t.ctrlKey && "KeyL" == t.code) {
+              document.getElementById("line").click()
+          }
+          if (t.ctrlKey && "KeyA" == t.code) {
+              document.getElementById("lineArrow").click()
+          }
+          if (t.ctrlKey && "KeyU" == t.code) {
+              document.getElementById("rect").click()
+          }
+          if (t.ctrlKey && "KeyE" == t.code) {
+              document.getElementById("ellipse").click()
+          }
+          if (t.ctrlKey && "KeyT" == t.code) {
+              document.getElementById("text").click()
+          }
+          if (t.ctrlKey && "KeyI" == t.code) {
+              document.getElementById("inputColor").click()
+          }
+          if (t.ctrlKey && "KeyZ" == t.code && this.cUndo(),
+          t.ctrlKey && "KeyY" == t.code && this.cRedo(),
+          t.ctrlKey && "KeyG" == t.code) {
+              //document.getElementById("link").click()
+          }
+          if (t.ctrlKey && "KeyO" == t.code) {
+              document.getElementById("view").click()
+          }
+          if (t.ctrlKey && "KeyC" == t.code) {
+              document.getElementById("copy").click()
+          }
+          if (t.ctrlKey && "KeyS" == t.code) {
+              document.getElementById("save").click()
+          }
+          if ("Escape" == t.code) {
+              document.getElementById("close").click()
+          }
+      }
+      , !1)
+    
+  }
   _handleUndoRedo = (id) => {
     if (id === "undo") this.cUndo();
     else this.cRedo();
@@ -297,6 +378,10 @@ export default class DrawingCore {
     if (id === "save") this._saveImage();
     else if (id === "ocr") this._runOCROnCroppedArea();
     else this._copyImageToClipboard();
+  };
+
+  _handleClose = () => {
+    null !== this.options.onClose && this.options.onClose()
   };
 
   _saveImage = () => {
@@ -355,52 +440,51 @@ export default class DrawingCore {
      * @private
      * @param {string} text - Văn bản đã được nhận dạng.
      */
-    _handleOCRResult = (text) => {
-        const trimmedText = text.trim();
-        if (!trimmedText) {
-            // Có thể tạo một modal thông báo đơn giản
-            new Modal({
-                title: "OCR Result",
-                content: "No text could be recognized in the selected area.",
-                actions: [{ label: 'Close', className: 'primary', onClick: modal => modal.close() }]
-            });
-            return;
-        }
+  _handleOCRResult = (text) => {
+      const trimmedText = text.trim();
+      if (!trimmedText) {
+          new Modal({
+              title: "OCR Result",
+              content: "No text could be recognized in the selected area.",
+              actions: [{ label: 'Close', className: 'primary', onClick: modal => modal.close() }]
+          });
+          return;
+      }
 
-        // Tạo một textarea để hiển thị kết quả và cho phép người dùng chỉnh sửa
-        const contentElement = document.createElement('textarea');
-        contentElement.className = 'ocr-result-textarea';
-        contentElement.value = trimmedText;
+      // Tạo một textarea để hiển thị kết quả và cho phép người dùng chỉnh sửa
+      const contentElement = document.createElement('textarea');
+      contentElement.className = 'ocr-result-textarea';
+      contentElement.value = trimmedText;
 
-        // Tạo và hiển thị modal
-        new Modal({
-            title: "Recognized Text",
-            content: contentElement,
-            actions: [
-                {
-                    label: "Cancel",
-                    onClick: (modal) => {
-                        modal.close();
-                    }
-                },
-                {
-                    label: "Copy Text",
-                    className: "primary", // Style nút chính
-                    onClick: (modal) => {
-                        navigator.clipboard.writeText(contentElement.value).then(() => {
-                            //this._showToolSizeIndicator(" Copied to clipboard!");
-                            Notifier.show({ message: `Copied to clipboard!`, type: 'success' });
-                            modal.close(); // Đóng modal sau khi copy
-                        }).catch(err => {
-                            console.error("Failed to copy text:", err);
-                            Notifier.show({ message: `Failed to copy text`, type: 'error' });
-                            // Có thể hiển thị lỗi ngay trong modal
-                        });
-                    }
-                }
-            ]
-        });
-    }
+      // Tạo và hiển thị modal
+      new Modal({
+          title: "Recognized Text",
+          content: contentElement,
+          actions: [
+              {
+                  label: "Cancel",
+                  onClick: (modal) => {
+                      modal.close();
+                  }
+              },
+              {
+                  label: "Copy Text",
+                  className: "primary", // Style nút chính
+                  onClick: (modal) => {
+                      navigator.clipboard.writeText(contentElement.value).then(() => {
+                          //this._showToolSizeIndicator(" Copied to clipboard!");
+                          Notifier.show({ message: `Copied to clipboard!`, type: 'success' });
+                          modal.close(); // Đóng modal sau khi copy
+                      }).catch(err => {
+                          console.error("Failed to copy text:", err);
+                          Notifier.show({ message: `Failed to copy text`, type: 'error' });
+                          // Có thể hiển thị lỗi ngay trong modal
+                      });
+                  }
+              }
+          ]
+      });
+  }
 
   /**
    * Hiển thị một indicator toàn màn hình cho quá trình OCR.
@@ -497,6 +581,7 @@ export default class DrawingCore {
   _handleWheel = (ev) => {
     ev.preventDefault();
     if (!this.tool) return;
+    this.resizeCursor(ev);
     const direction = Math.sign(ev.deltaY);
     if (this.tool instanceof TextTool) {
       const amount = 2;
@@ -551,6 +636,12 @@ export default class DrawingCore {
     });
   };
 
+  showCursorDraw = (enable) => {
+    if (!this.cursorDraw) return;
+    const displayStyle = enable ? "block" : "none";
+    this.cursorDraw.style.display = displayStyle;
+  };
+
   updateCropprImage = () => {
     if (this.cPushArray.length === 0) return;
     const cropprImage = document.getElementById("cropprImage");
@@ -558,7 +649,7 @@ export default class DrawingCore {
     const latestImageData = this.cPushArray[this.cStep];
     if (cropprImage) cropprImage.src = latestImageData;
     if (cropprImageClipped) cropprImageClipped.src = latestImageData;
-    // this.cropImage();
+    
   };
 
   cPush = () => {
@@ -598,9 +689,7 @@ export default class DrawingCore {
     imageFromHistory.onload = () => {
       const destCanvas = this.imgCroppedCanvas;
       const destCtx = this.ctxImgCrop;
-      const dpr = this.dpr;
 
-      // Kích thước vật lý của canvas đích (phải nhân dpr)
       destCanvas.width = this.cropprWidth;
       destCanvas.height = this.cropprHeight;
 
@@ -625,14 +714,24 @@ export default class DrawingCore {
         this.cropprWidth,
         this.cropprHeight
       );
-      //i.drawImage(d, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight);
-      // Cập nhật nút tải ảnh
+      
       cb(destCanvas);
-
-      //this.saveLink.href = destCanvas.toDataURL("image/png");
-      //this.saveLink.download = "screenshot.png";
+     
     };
   };
+
+  
+
+  createCursorDraw = () => {
+      this.cursorDraw = document.createElement("div");
+      this.cursorDraw.className = "cursor-draw";
+      this.cursorDraw.id = "cursorDraw";      
+      Object.assign(this.cursorDraw.style, { 
+        width: this.lineWidth + "px", 
+        height: this.lineWidth + "px",         
+      }); 
+      this.elem.appendChild(this.cursorDraw);
+  }
 
   destroy = () => {
     console.log("Destroying DrawingCore instance...");
