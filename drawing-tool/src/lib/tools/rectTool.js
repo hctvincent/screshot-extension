@@ -89,7 +89,7 @@ export class RectTool {
      */
     draw(isPerfectSquare = false) {
         // Xóa canvas để vẽ lại frame mới (phù hợp cho canvas xem trước)
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.core.clearTempCanvas();
 
         // Tính toán chiều rộng và chiều cao dựa trên điểm bắt đầu và điểm hiện tại
         let width = this.currentX - this.startX;

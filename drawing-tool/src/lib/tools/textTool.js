@@ -244,6 +244,12 @@ export class TextTool {
 
     _commitText = () => {
         if (this.textarea && this.textarea.value.trim()) {
+            // Commit có thể đến từ nút menu (không qua sự kiện canvas) hoặc sau khi zoom,
+            // nên đồng bộ lại tỉ lệ và lấy vị trí textarea so với canvas ngay lúc này.
+            const canvasRect = this.core.syncTempTransform();
+            const wrapperRect = this.textWrapper.getBoundingClientRect();
+            this.canvasX = wrapperRect.left - canvasRect.left;
+            this.canvasY = wrapperRect.top - canvasRect.top;
             const textToDraw = this.textarea.value;
             const drawX = this.canvasX + this.WRAPPER_PADDING_PX + this.TEXTAREA_BORDER_PX + this.TEXTAREA_INTERNAL_PADDING_PX;
             const drawY = this.canvasY + this.WRAPPER_PADDING_PX + this.TEXTAREA_BORDER_PX + this.TEXTAREA_INTERNAL_PADDING_PX;

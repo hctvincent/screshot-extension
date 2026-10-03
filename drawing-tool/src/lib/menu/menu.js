@@ -16,6 +16,7 @@ export default class Menu {
 
         // --- Drag State ---
         this.isDragging = false;
+        this.hasBeenMoved = false; // true khi người dùng đã tự kéo menu
         this.startX = 0;
         this.startY = 0;
         this.startLeft = 0;
@@ -158,6 +159,7 @@ export default class Menu {
         const newTop = this.startTop + (coords.y - this.startY);
 
         this.setPosition(newLeft, newTop);
+        this.hasBeenMoved = true;
     }
 
     /**
@@ -219,7 +221,6 @@ export default class Menu {
             { id: 'redo', title: 'Redo', type: 'control', icon: feather.icons['corner-up-right'].toSvg() },
             { id: 'save', title: 'Save', type: 'action', icon: feather.icons.save.toSvg() },
             { id: 'copy', title: 'Copy to Clipboard', type: 'action', icon: feather.icons.copy.toSvg() },
-            { id: 'ocr', title: 'Recognize Text', type: 'action', icon: feather.icons['file-text'].toSvg() },
             { id: 'close', title: 'Close', type: 'close', icon: feather.icons.x.toSvg() }
         ];
     }

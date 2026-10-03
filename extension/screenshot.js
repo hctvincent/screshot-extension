@@ -1,32 +1,17 @@
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "setScreenshotUrl") {
-    // Do something with request.screenshotUrl
     sendResponse({ status: "success" });
-    var url = request.screenshotUrl;
-    setScreenshotUrl(url);
+    setScreenshotUrl(request.screenshotUrl);
   }
 });
 
 function setScreenshotUrl(url) {
-  
   var elem = document.getElementById("drawingTool");
+  // Option names must match DrawingCore (drawing-tool/src/lib/core/drawingCore.js)
   new DrawingTool(elem, {
-    screenshotPath: url,
-    onInit: () => {},
-    onCloseClick: () => {
+    bgImage: url,
+    onClose: () => {
       window.close();
     },
-
-    onCopyClipboardClick: () => {
-      showSnackbar();
-    },
   });
-}
-
-function showSnackbar() {
-  var x = document.getElementById("snackbar");
-  x.className = "show";
-  setTimeout(function () {
-    x.className = x.className.replace("show", "");
-  }, 2000);
 }

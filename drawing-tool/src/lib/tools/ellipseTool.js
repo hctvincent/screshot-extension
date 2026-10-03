@@ -95,7 +95,7 @@ export class EllipseTool {
      */
     draw(isPerfectCircle = false) {
         // Xóa canvas để vẽ lại frame mới (phù hợp cho canvas xem trước)
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.core.clearTempCanvas();
         
         // Tính toán chiều rộng và chiều cao của hình chữ nhật bao quanh elip
         let width = this.currentX - this.startX;

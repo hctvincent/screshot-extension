@@ -112,7 +112,7 @@ export class LineArrowTool {
   draw() {
     // Xóa toàn bộ canvas trước mỗi lần vẽ lại. Điều này tạo ra hiệu ứng
     // xem trước (preview) cho đường vẽ hiện tại.
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.core.clearTempCanvas();
 
     // Bắt đầu một "path" mới để không bị ảnh hưởng bởi các thao tác vẽ trước đó.
     this.context.beginPath();

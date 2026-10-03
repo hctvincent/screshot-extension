@@ -1,6 +1,4 @@
-import Tesseract from 'tesseract.js';
 import Croppr from "../croppr";
-import Modal from "../ui/modal";
 import Notifier from '../ui/notificationManager';
 import {
   PencilTool,
@@ -51,65 +49,64 @@ export default class DrawingCore {
   }
 
   init = () => {
-    this._createCanvas();
-    this.menu = new Menu(this.elem);
-    if (this.options.bgImage) {
-      const bgImage = new Image();
-      bgImage.crossOrigin = "Anonymous";
-      bgImage.src = this.options.bgImage;
-      bgImage.onload = () => {
-        const displayWidth = this.canvaso.width / this.dpr;
-        const displayHeight = this.canvaso.height / this.dpr;
-        this.contexto.drawImage(bgImage, 0, 0, displayWidth, displayHeight);
-        this.cPush();
-        this._initializeCropper();
-      };
-    } else {
-      this.cPush();
-      this._initializeCropper();
+    if (!this.options.bgImage) {
+      this._setup(null);
+      return;
     }
+    const bgImage = new Image();
+    bgImage.crossOrigin = "Anonymous";
+    bgImage.onload = () => this._setup(bgImage);
+    bgImage.onerror = () => {
+      console.error("Failed to load background image.");
+      this._setup(null);
+    };
+    bgImage.src = this.options.bgImage;
+  };
+
+  // Canvas luôn dùng độ phân giải gốc của ảnh (pixel thật), còn kích thước hiển thị
+  // do CSS quyết định. Mọi toạ độ chuột được quy đổi theo tỉ lệ hiển thị hiện tại
+  // nên vẽ đúng trên mọi màn hình / mức zoom.
+  _setup = (bgImage) => {
+    const width = bgImage
+      ? bgImage.naturalWidth
+      : Math.round((this.options.width || window.innerWidth) * this.dpr);
+    const height = bgImage
+      ? bgImage.naturalHeight
+      : Math.round((this.options.height || window.innerHeight) * this.dpr);
+    this._createCanvas(width, height);
+    if (bgImage) this.contexto.drawImage(bgImage, 0, 0, width, height);
+    this.menu = new Menu(this.elem);
+    this.cPush();
+    this._initializeCropper();
     if (this.tools[this.tool_default]) {
       this.tool = new this.tools[this.tool_default](this);
     }
     this._addCanvasEventListeners();
+    window.addEventListener("resize", this._handleResize);
   };
 
-  _createCanvas = () => {
-    const width = this.options.width || window.innerWidth;
-    const height = this.options.height || window.innerHeight;
+  _createCanvas = (width, height) => {
     this.canvaso = document.createElement("canvas");
     this.canvaso.id = "imageView";
-    this.canvaso.width = width * this.dpr;
-    this.canvaso.height = height * this.dpr;
-    this.canvaso.style.width = `${width}px`;
-    this.canvaso.style.height = `${height}px`;
+    this.canvaso.width = width;
+    this.canvaso.height = height;
     this.contexto = this.canvaso.getContext("2d");
-    this.contexto.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.elem.appendChild(this.canvaso);
     this.canvas = document.createElement("canvas");
     this.canvas.id = "imageTemp";
-    this.canvas.width = width * this.dpr;
-    this.canvas.height = height * this.dpr;
-    this.canvas.style.width = `${width}px`;
-    this.canvas.style.height = `${height}px`;
+    this.canvas.width = width;
+    this.canvas.height = height;
     this.context = this.canvas.getContext("2d");
-    this.context.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     this.imgCroppedCanvas = document.createElement("canvas");
     this.imgCroppedCanvas.id = "imgCroppedCanvas";
     this.ctxImgCrop = this.imgCroppedCanvas.getContext("2d");
   };
 
   _canvasEvent = (ev) => {
-    const rect = this.canvas.getBoundingClientRect();
-    const zoomX = rect.width > 0 ? this.canvas.offsetWidth / rect.width : 1;
-    const zoomY = rect.height > 0 ? this.canvas.offsetHeight / rect.height : 1;
-    const mouseXInZoomedBox = ev.clientX - rect.left;
-    const mouseYInZoomedBox = ev.clientY - rect.top;
-    const logicalX = mouseXInZoomedBox * zoomX;
-    const logicalY = mouseYInZoomedBox * zoomY;
-    ev._x = logicalX;
-    ev._y = logicalY;
-    
+    const rect = this.syncTempTransform();
+    ev._x = ev.clientX - rect.left;
+    ev._y = ev.clientY - rect.top;
+
     const handler = this.tool ? this.tool[ev.type] : null;
     if (handler) {
       ev.preventDefault();
@@ -135,21 +132,38 @@ export default class DrawingCore {
       
     }
   };
-  resizeCursor(t) {
-    t.deltaY < 0 && this.lineWidth < 125 && (this.lineWidth++,
-    this.cursorDraw.style.width = this.lineWidth + "px",
-    this.cursorDraw.style.height = this.lineWidth + "px"),
-    t.deltaY > 0 && this.lineWidth > 1 && (this.lineWidth--,
-    this.cursorDraw.style.width = this.lineWidth + "px",
-    this.cursorDraw.style.height = this.lineWidth + "px")
-   }
-
-   updateCursorPosition(e) {
+  updateCursorSize() {
     if (this.cursorDraw) {
-      this.cursorDraw.style.top = e.offsetY;
-      this.cursorDraw.style.left = e.offsetX;
+      this.cursorDraw.style.width = this.lineWidth + "px";
+      this.cursorDraw.style.height = this.lineWidth + "px";
     }
-   }  
+  }
+
+  updateCursorPosition(e) {
+    if (this.cursorDraw) {
+      const rect = this.elem.getBoundingClientRect();
+      this.cursorDraw.style.left = `${e.clientX - rect.left}px`;
+      this.cursorDraw.style.top = `${e.clientY - rect.top}px`;
+    }
+  }
+
+  // Tools làm việc theo đơn vị CSS px trên màn hình (giống cursor, textarea, cỡ bút);
+  // transform quy đổi sang pixel thật của canvas theo tỉ lệ hiển thị lúc này.
+  syncTempTransform = () => {
+    const rect = this.canvas.getBoundingClientRect();
+    const scaleX = rect.width > 0 ? this.canvas.width / rect.width : 1;
+    const scaleY = rect.height > 0 ? this.canvas.height / rect.height : 1;
+    this.context.setTransform(scaleX, 0, 0, scaleY, 0, 0);
+    return rect;
+  };
+
+  // Xoá canvas tạm, không phụ thuộc transform hiện tại.
+  clearTempCanvas = () => {
+    this.context.save();
+    this.context.setTransform(1, 0, 0, 1, 0, 0);
+    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.context.restore();
+  };
 
   updateImage = () => {
     this.contexto.save();
@@ -158,10 +172,7 @@ export default class DrawingCore {
     this.contexto.restore();
     this.cPush();
     this.updateCropprImage();
-    this.context.save();
-    this.context.setTransform(1, 0, 0, 1, 0, 0);
-    this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    this.context.restore();
+    this.clearTempCanvas();
   };
 
   _redrawMainCanvasFromHistory = (dataUrl) => {
@@ -172,10 +183,7 @@ export default class DrawingCore {
       this.contexto.clearRect(0, 0, this.canvaso.width, this.canvaso.height);
       this.contexto.drawImage(this.canvasPic, 0, 0);
       this.contexto.restore();
-      this.context.save();
-      this.context.setTransform(1, 0, 0, 1, 0, 0);
-      this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
-      this.context.restore();
+      this.clearTempCanvas();
       this.updateCropprImage();
     };
   };
@@ -194,40 +202,14 @@ export default class DrawingCore {
         }
         let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
         if(cropprHandleContainer) cropprHandleContainer[0].classList.add('is-hidden');
-        requestAnimationFrame(() => {
-          const regionEl = this.cropper.regionEl;
-          if (regionEl && regionEl.clientWidth > 0) {           
-            
-            let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
-            if(cropprHandleContainer) cropprHandleContainer.style.display = 'none';
-
-            
-            this.cropprX = regionEl.offsetLeft;
-            this.cropprY = regionEl.offsetTop;
-            this.cropprWidth = regionEl.clientWidth;
-            this.cropprHeight = regionEl.clientHeight;
-            
-            
-           
-
-          }
-        });
+        this._cropprDisplaySize = this._getCropprDisplaySize(instance);
+        this._setCropValue(instance.getValue("real"));
       },
-      onCropEnd: (data) => {        
-        this.cropprX = data.x;
-        this.cropprY = data.y;
-        this.cropprWidth = data.width;
-        this.cropprHeight = data.height;
+      onCropEnd: (data) => {
+        this._setCropValue(data);
         if(this.menu && this.menu.menuElement) return;
-        this.menu.createMenu(
-          data.x,
-          data.y,
-        );
-        let menuHeight = this.menu.menuElement.clientHeight;
-        this.menu.setPosition(
-          data.x / this.dpr,
-          (data.y - menuHeight-10) / this.dpr,
-        );
+        this.menu.createMenu(0, 0);
+        this._positionMenuAtRegion();
         let cropprHandleContainer = document.querySelectorAll('.croppr-handleContainer');
         if(cropprHandleContainer) cropprHandleContainer[0].classList.remove('is-hidden');
         this._setupMenuHandlers();
@@ -249,19 +231,64 @@ export default class DrawingCore {
 
         // }.bind(this));
       },
-      onCropMove: (data) => {
-        requestAnimationFrame(() => {
-          
-          if (this.menu && this.menu.menuElement) {
-            let menuHeight = this.menu.menuElement.clientHeight;
-            this.menu.setPosition(
-              data.x / this.dpr,
-              (data.y - menuHeight-10) / this.dpr,
-            );
-          } 
-        });
+      onCropMove: () => {
+        requestAnimationFrame(this._positionMenuAtRegion);
       },
     });
+  };
+
+  // Vùng crop lưu theo pixel thật của ảnh (giống canvas), không phụ thuộc zoom.
+  _setCropValue = (data) => {
+    this.cropprX = data.x;
+    this.cropprY = data.y;
+    this.cropprWidth = data.width;
+    this.cropprHeight = data.height;
+  };
+
+  _getCropprDisplaySize = (cropper = this.cropper) => {
+    const rect = cropper.imageEl.getBoundingClientRect();
+    return { width: rect.width, height: rect.height };
+  };
+
+  // Đặt menu ngay trên vùng crop, theo toạ độ hiển thị thực tế của region.
+  _positionMenuAtRegion = () => {
+    if (!this.menu || !this.menu.menuElement || !this.cropper) return;
+    const region = this.cropper.regionEl.getBoundingClientRect();
+    // Đặt left trước rồi mới đo chiều cao: menu có thể xuống dòng khi sát mép phải.
+    this.menu.setPosition(region.left, region.top);
+    const menuHeight = this.menu.menuElement.offsetHeight;
+    this.menu.setPosition(region.left, region.top - menuHeight - 10);
+    this.menu.hasBeenMoved = false;
+  };
+
+  // Khi cửa sổ đổi kích thước hoặc người dùng zoom, ảnh hiển thị đổi kích thước theo.
+  // Croppr giữ box theo CSS px nên phải scale box theo tỉ lệ mới để vẫn khớp với ảnh.
+  _handleResize = () => {
+    if (this.cropper && this.cropper.box && this._cropprDisplaySize) {
+      const prev = this._cropprDisplaySize;
+      const next = this._getCropprDisplaySize();
+      if (prev.width > 0 && prev.height > 0 && next.width > 0 && next.height > 0) {
+        const rx = next.width / prev.width;
+        const ry = next.height / prev.height;
+        const box = this.cropper.box;
+        box.set(box.x1 * rx, box.y1 * ry, box.x2 * rx, box.y2 * ry);
+        this.cropper.redraw();
+        this._cropprDisplaySize = next;
+      }
+    }
+    // cropper.redraw() cập nhật DOM trong requestAnimationFrame, nên đặt menu sau đó.
+    requestAnimationFrame(this._repositionMenuAfterResize);
+  };
+
+  _repositionMenuAfterResize = () => {
+    if (this.menu && this.menu.menuElement) {
+      if (this.menu.isDragging || this.menu.hasBeenMoved) {
+        // Giữ vị trí người dùng đã kéo, chỉ ép lại vào trong cửa sổ.
+        this.menu.setPosition(this.menu.menuElement.offsetLeft, this.menu.menuElement.offsetTop);
+      } else {
+        this._positionMenuAtRegion();
+      }
+    }
   };
 
   
@@ -376,12 +403,11 @@ export default class DrawingCore {
 
   _handleActions = (id) => {
     if (id === "save") this._saveImage();
-    else if (id === "ocr") this._runOCROnCroppedArea();
     else this._copyImageToClipboard();
   };
 
   _handleClose = () => {
-    null !== this.options.onClose && this.options.onClose()
+    this.options.onClose?.();
   };
 
   _saveImage = () => {
@@ -393,140 +419,6 @@ export default class DrawingCore {
       el.click();
     });
   };
-
-
-  _runOCROnCroppedArea = () => {
-    this._showOCRIndicator('Recognizing text...');
-
-    // Gọi cropImage để lấy ảnh dưới dạng Data URL
-    this.cropImage((destCanvas) => {
-        if (!destCanvas) {
-          console.error("Failed to get cropped image for OCR.");
-          this._hideOCRIndicator("OCR Failed!");
-            return;
-        }
-
-        // Sử dụng Tesseract để nhận dạng văn bản từ Data URL
-        let dataUrl = destCanvas.toDataURL("image/png");
-        Tesseract.recognize(
-            dataUrl,
-            'eng', // Ngôn ngữ nhận dạng, ví dụ: 'eng' (tiếng Anh), 'vie' (tiếng Việt)
-            { 
-                logger: m => {
-                    // Hiển thị tiến trình cho người dùng
-                    if (m.status === 'recognizing text') {
-                        const progress = (m.progress * 100).toFixed(0);
-                        this._showOCRIndicator(`Recognizing... ${progress}%`);
-                    }
-                } 
-            }
-        ).then(({ data: { text } }) => {
-            console.log("Recognized Text:", text);
-            this._hideOCRIndicator("Done!");
-            
-            // Hiển thị kết quả cho người dùng
-            this._handleOCRResult(text);
-
-        }).catch(err => {
-            console.error("Tesseract Error:", err);
-            this._hideOCRIndicator("OCR Error!");
-        });
-
-    });
-  }
-
-   /**
-     * Xử lý kết quả văn bản nhận dạng được bằng cách hiển thị một modal.
-     * @private
-     * @param {string} text - Văn bản đã được nhận dạng.
-     */
-  _handleOCRResult = (text) => {
-      const trimmedText = text.trim();
-      if (!trimmedText) {
-          new Modal({
-              title: "OCR Result",
-              content: "No text could be recognized in the selected area.",
-              actions: [{ label: 'Close', className: 'primary', onClick: modal => modal.close() }]
-          });
-          return;
-      }
-
-      // Tạo một textarea để hiển thị kết quả và cho phép người dùng chỉnh sửa
-      const contentElement = document.createElement('textarea');
-      contentElement.className = 'ocr-result-textarea';
-      contentElement.value = trimmedText;
-
-      // Tạo và hiển thị modal
-      new Modal({
-          title: "Recognized Text",
-          content: contentElement,
-          actions: [
-              {
-                  label: "Cancel",
-                  onClick: (modal) => {
-                      modal.close();
-                  }
-              },
-              {
-                  label: "Copy Text",
-                  className: "primary", // Style nút chính
-                  onClick: (modal) => {
-                      navigator.clipboard.writeText(contentElement.value).then(() => {
-                          //this._showToolSizeIndicator(" Copied to clipboard!");
-                          Notifier.show({ message: `Copied to clipboard!`, type: 'success' });
-                          modal.close(); // Đóng modal sau khi copy
-                      }).catch(err => {
-                          console.error("Failed to copy text:", err);
-                          Notifier.show({ message: `Failed to copy text`, type: 'error' });
-                          // Có thể hiển thị lỗi ngay trong modal
-                      });
-                  }
-              }
-          ]
-      });
-  }
-
-  /**
-   * Hiển thị một indicator toàn màn hình cho quá trình OCR.
-   * @private
-   * @param {string} message - Thông điệp cần hiển thị.
-   */
-  _showOCRIndicator = (message) => {
-    if (!this.ocrIndicator) {
-      this.ocrIndicator = document.createElement('div');
-      Object.assign(this.ocrIndicator.style, {
-        position: 'fixed',
-        top: '0', left: '0',
-        width: '100vw', height: '100vh',
-        backgroundColor: 'transparent',
-        color: 'black',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        fontSize: '24px',
-        fontFamily: 'sans-serif',
-        zIndex: '10001',
-        transition: 'opacity 0.3s'
-      });
-      document.body.appendChild(this.ocrIndicator);
-    }
-    this.ocrIndicator.textContent = message;
-    this.ocrIndicator.style.opacity = '1';
-    this.ocrIndicator.style.display = 'flex';
-  }
-
-  _hideOCRIndicator = (finalMessage) => {
-    if (!this.ocrIndicator) return;
-    this.ocrIndicator.textContent = finalMessage;
-    setTimeout(() => {
-        if (this.ocrIndicator) {
-            this.ocrIndicator.style.opacity = '0';
-            setTimeout(() => {
-                if (this.ocrIndicator) this.ocrIndicator.style.display = 'none';
-            }, 300);
-        }
-    }, 1500);
-  }
 
 
   /**
@@ -579,9 +471,9 @@ export default class DrawingCore {
   };
 
   _handleWheel = (ev) => {
+    if (ev.ctrlKey) return; // Ctrl + lăn chuột: để trình duyệt zoom
     ev.preventDefault();
     if (!this.tool) return;
-    this.resizeCursor(ev);
     const direction = Math.sign(ev.deltaY);
     if (this.tool instanceof TextTool) {
       const amount = 2;
@@ -593,6 +485,7 @@ export default class DrawingCore {
       const amount = ev.shiftKey ? 5 : 1;
       if (direction > 0) this.lineWidth = Math.max(1, this.lineWidth - amount);
       else this.lineWidth = Math.min(100, this.lineWidth + amount);
+      this.updateCursorSize();
       this._showToolSizeIndicator(`Brush Size: ${this.lineWidth}`);
     }
   };
@@ -740,6 +633,7 @@ export default class DrawingCore {
     this.canvas.removeEventListener("mouseup", this._canvasEvent);
     this.canvas.removeEventListener("mouseleave", this._canvasEvent);
     this.canvas.removeEventListener("wheel", this._handleWheel);
+    window.removeEventListener("resize", this._handleResize);
 
     if (this.cropper) this.cropper.destroy();
     if (this.menu && typeof this.menu.destroy === "function")

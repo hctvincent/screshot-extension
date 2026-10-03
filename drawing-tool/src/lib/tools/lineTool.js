@@ -87,7 +87,7 @@ export class LineTool {
      */
     draw(snapToAxis = false) {
         // Xóa canvas để vẽ lại frame mới
-        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.core.clearTempCanvas();
 
         let endX = this.currentX;
         let endY = this.currentY;

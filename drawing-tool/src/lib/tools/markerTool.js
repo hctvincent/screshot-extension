@@ -58,7 +58,7 @@ export class MarkerTool {
             this.isDrawing = false;
             this.points = [];
             // Xóa canvas tạm thời để không còn hình preview "ma"
-            this.context.clearRect(0, 0, this.context.canvas.width, this.context.canvas.height);
+            this.core.clearTempCanvas();
         }
     }
 
@@ -70,7 +70,7 @@ export class MarkerTool {
      */
     draw = () => {
         // Xóa canvas tạm thời trước mỗi lần vẽ lại để chỉ hiển thị nét vẽ hiện tại
-        this.context.clearRect(0, 0, this.context.canvas.width, this.context.canvas.height);
+        this.core.clearTempCanvas();
 
         if (this.points.length < 2) return;
         this.context.save();
