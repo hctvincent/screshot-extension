@@ -1,4 +1,11 @@
-import feather from 'feather-icons';
+import {
+    createElement,
+    Move, Pencil, Highlighter, PenLine, MoveUpRight, Square, Circle, Type,
+    Palette, Undo2, Redo2, Download, Copy, X,
+} from 'lucide';
+
+// Lucide icon -> chuỗi SVG để gán vào innerHTML của nút menu
+const icon = (node) => createElement(node).outerHTML;
 
 /**
  * Manages the creation, rendering, and interaction of a draggable toolbar menu.
@@ -207,21 +214,21 @@ export default class Menu {
      */
     _getDefaultMenuConfig() {
         return [
-            { id: 'move', title: 'Move', type: 'move', icon: feather.icons.move.toSvg() },
-            { id: 'pencil', title: 'Pencil', type: 'tool', icon: feather.icons['edit-2'].toSvg() },
-            { id: 'marker', title: 'Marker', type: 'tool', icon: feather.icons['edit-3'].toSvg() },
-            { id: 'line', title: 'Line', type: 'tool', icon: feather.icons.minus.toSvg() },
-            { id: 'lineArrow', title: 'Line Arrow', type: 'tool', icon: feather.icons['arrow-right'].toSvg() },
-            { id: 'rect', title: 'Rect', type: 'tool', icon: feather.icons.square.toSvg() },
-            { id: 'ellipse', title: 'Ellipse', type: 'tool', icon: feather.icons.circle.toSvg() },
-            { id: 'text', title: 'Text', type: 'tool', icon: feather.icons.type.toSvg() },
+            { id: 'move', title: 'Move', type: 'move', icon: icon(Move) },
+            { id: 'pencil', title: 'Pencil', type: 'tool', icon: icon(Pencil) },
+            { id: 'line', title: 'Line', type: 'tool', icon: icon(PenLine) },
+            { id: 'marker', title: 'Marker', type: 'tool', icon: icon(Highlighter) },
+            { id: 'lineArrow', title: 'Line Arrow', type: 'tool', icon: icon(MoveUpRight) },
+            { id: 'rect', title: 'Rect', type: 'tool', icon: icon(Square) },
+            { id: 'ellipse', title: 'Ellipse', type: 'tool', icon: icon(Circle) },
+            { id: 'text', title: 'Text', type: 'tool', icon: icon(Type) },
             // It's better to create the color input with a label for accessibility
-            { id: 'color-picker', title: 'Color', type: 'color', value: `<label for="inputColor" class="color-picker-label">${feather.icons.aperture.toSvg()}</label><input type="color" value="#ff0000" id="inputColor">`},
-            { id: 'undo', title: 'Undo', type: 'control', icon: feather.icons['corner-up-left'].toSvg() },
-            { id: 'redo', title: 'Redo', type: 'control', icon: feather.icons['corner-up-right'].toSvg() },
-            { id: 'save', title: 'Save', type: 'action', icon: feather.icons.save.toSvg() },
-            { id: 'copy', title: 'Copy to Clipboard', type: 'action', icon: feather.icons.copy.toSvg() },
-            { id: 'close', title: 'Close', type: 'close', icon: feather.icons.x.toSvg() }
+            { id: 'color-picker', title: 'Color', type: 'color', value: `<label for="inputColor" class="color-picker-label">${icon(Palette)}</label><input type="color" value="#ff0000" id="inputColor">`},
+            { id: 'undo', title: 'Undo', type: 'control', icon: icon(Undo2) },
+            { id: 'redo', title: 'Redo', type: 'control', icon: icon(Redo2) },
+            { id: 'save', title: 'Save', type: 'action', icon: icon(Download) },
+            { id: 'copy', title: 'Copy to Clipboard', type: 'action', icon: icon(Copy) },
+            { id: 'close', title: 'Close', type: 'close', icon: icon(X) }
         ];
     }
 }

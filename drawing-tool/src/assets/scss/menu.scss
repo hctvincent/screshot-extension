@@ -42,9 +42,9 @@
 
 /* Styling cho SVG icons bên trong <a> */
 .drawing-menu .toolSelect a svg {
-  width: 22px;  /* << GIẢM KÍCH THƯỚC ICON */
-  height: 22px; /* << GIẢM KÍCH THƯỚC ICON */
-  stroke-width: 2; /* Có thể giữ nguyên hoặc giảm nhẹ nếu icon trông quá dày */
+  width: 20px;
+  height: 20px;
+  stroke-width: 1.75; /* nét mảnh hơn cho bộ icon Lucide */
   stroke: #333;
   fill: none;
   pointer-events: none;
