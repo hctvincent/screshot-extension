@@ -279,9 +279,12 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
     chrome.contextMenus.create({ id: FULL_PAGE_MENU_ID, title: "Capture full page", contexts: ["action"] });
   });
 
-  // Welcome page on first install only; updates stay silent.
+  // Welcome page on first install only; updates stay silent. Skip it when IT force-installs
+  // the extension by policy, so employees don't get an unexpected tab.
   if (reason === chrome.runtime.OnInstalledReason.INSTALL) {
-    chrome.tabs.create({ url: `${SITE_URL}/welcome` });
+    chrome.management.getSelf((self) => {
+      if (self.installType !== "admin") chrome.tabs.create({ url: `${SITE_URL}/welcome` });
+    });
   }
 });
 
