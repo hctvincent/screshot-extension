@@ -1,7 +1,7 @@
 import {
     createElement,
     Move, Pencil, Highlighter, PenLine, MoveUpRight, Square, Circle, Type,
-    Palette, Undo2, Redo2, Download, Copy, X,
+    Palette, Undo2, Redo2, Download, Copy, X, EyeOff,
 } from 'lucide';
 
 // Lucide icon -> chuỗi SVG để gán vào innerHTML của nút menu
@@ -222,6 +222,7 @@ export default class Menu {
             { id: 'rect', title: 'Rect', type: 'tool', icon: icon(Square) },
             { id: 'ellipse', title: 'Ellipse', type: 'tool', icon: icon(Circle) },
             { id: 'text', title: 'Text', type: 'tool', icon: icon(Type) },
+            { id: 'blur', title: 'Blur (hide sensitive info)', type: 'tool', icon: icon(EyeOff) },
             // It's better to create the color input with a label for accessibility
             { id: 'color-picker', title: 'Color', type: 'color', value: `<label for="inputColor" class="color-picker-label">${icon(Palette)}</label><input type="color" value="#ff0000" id="inputColor">`},
             { id: 'undo', title: 'Undo', type: 'control', icon: icon(Undo2) },

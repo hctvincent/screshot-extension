@@ -6,3 +6,4 @@ export * from './lineArrowTool';
 export * from './textTool';
 export * from './markerTool';
 export * from './eraserTool';
+export * from './blurTool';

@@ -8,6 +8,7 @@ import {
   LineTool,
   EllipseTool,
   TextTool,
+  BlurTool,
 } from "../tools";
 import Menu from "../menu/menu";
 
@@ -31,6 +32,7 @@ export default class DrawingCore {
       lineArrow: LineArrowTool,
       ellipse: EllipseTool,
       text: TextTool,
+      blur: BlurTool,
     };
     this.tool_default = "pencil";
     this.canvaso = null;
@@ -75,6 +77,12 @@ export default class DrawingCore {
       : Math.round((this.options.height || window.innerHeight) * this.dpr);
     this._createCanvas(width, height);
     if (bgImage) this.contexto.drawImage(bgImage, 0, 0, width, height);
+    // Ảnh chụp cả trang cao hơn màn hình: cho cuộn và chọn sẵn toàn bộ ảnh.
+    this.isTallImage = height / width > (window.innerHeight / window.innerWidth) * 1.2;
+    if (this.isTallImage) {
+      this.elem.style.overflowY = "auto";
+      this.elem.addEventListener("scroll", this._handleScroll, { passive: true });
+    }
     this.menu = new Menu(this.elem);
     this.cPush();
     this._initializeCropper();
@@ -204,6 +212,8 @@ export default class DrawingCore {
         if(cropprHandleContainer) cropprHandleContainer[0].classList.add('is-hidden');
         this._cropprDisplaySize = this._getCropprDisplaySize(instance);
         this._setCropValue(instance.getValue("real"));
+        instance.cropperEl.addEventListener("dblclick", () => this.selectAll(instance));
+        if (this.isTallImage) setTimeout(() => this.selectAll(instance), 0);
       },
       onCropEnd: (data) => {
         this._setCropValue(data);
@@ -235,6 +245,20 @@ export default class DrawingCore {
         requestAnimationFrame(this._positionMenuAtRegion);
       },
     });
+  };
+
+  // Chọn toàn bộ ảnh (double-click, hoặc tự động với ảnh chụp cả trang).
+  selectAll = (cropper = this.cropper) => {
+    const { width, height } = cropper.imageEl.getBoundingClientRect();
+    cropper.box.set(0, 0, width, height);
+    cropper.redraw();
+    cropper.options.onCropEnd(cropper.getValue());
+  };
+
+  _handleScroll = () => {
+    if (this.menu && this.menu.menuElement && !this.menu.isDragging && !this.menu.hasBeenMoved) {
+      requestAnimationFrame(this._positionMenuAtRegion);
+    }
   };
 
   // Vùng crop lưu theo pixel thật của ảnh (giống canvas), không phụ thuộc zoom.
@@ -379,6 +403,9 @@ export default class DrawingCore {
           if (t.ctrlKey && "KeyT" == t.code) {
               document.getElementById("text").click()
           }
+          if (t.ctrlKey && "KeyB" == t.code) {
+              document.getElementById("blur").click()
+          }
           if (t.ctrlKey && "KeyI" == t.code) {
               document.getElementById("inputColor").click()
           }
@@ -422,7 +449,7 @@ export default class DrawingCore {
       let dataURL = destCanvas.toDataURL("image/png");
       let el = document.createElement("a");
       el.href = dataURL;
-      el.download = "screenshoteasy.png";
+      el.download = `screshot-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.png`;
       el.click();
     });
   };
@@ -641,6 +668,7 @@ export default class DrawingCore {
     this.canvas.removeEventListener("mouseleave", this._canvasEvent);
     this.canvas.removeEventListener("wheel", this._handleWheel);
     window.removeEventListener("resize", this._handleResize);
+    this.elem.removeEventListener("scroll", this._handleScroll);
 
     if (this.cropper) this.cropper.destroy();
     if (this.menu && typeof this.menu.destroy === "function")

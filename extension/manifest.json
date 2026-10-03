@@ -1,8 +1,8 @@
 {
   "update_url": "https://clients2.google.com/service/update2/crx",
-  "name": "Screshot - One click screen capture and editor",
+  "name": "Screshot – Screenshot Tool & Full Page Capture with Annotate, Blur",
   "version": "2.0.6",
-  "description": "Capture and edit your screen in one click. Fast, simple, and built for productivity.",
+  "description": "Screenshot any page or the full page, then crop, annotate and blur it. No account. Nothing is uploaded.",
   "background": {
     "service_worker": "background.js"
   },
@@ -14,7 +14,9 @@
     "default_title": "Screshot"
   },
   "permissions": [
-    "activeTab"
+    "activeTab",
+    "scripting",
+    "contextMenus"
   ],
   "manifest_version": 3,
   "icons": {
@@ -29,7 +31,13 @@
       "suggested_key": {
         "default": "Ctrl+Shift+S"
       },
-      "description": "Activate Screshot"
+      "description": "Capture the visible area"
+    },
+    "capture_full_page": {
+      "suggested_key": {
+        "default": "Alt+Shift+S"
+      },
+      "description": "Capture the full page"
     }
   }
 }
