@@ -1,43 +1,18 @@
 {
-  "name": "drawing-tool",
-  "version": "1.0.0",
-  "description": "HTML5 Drawing Tool",
-  "main": "index.js",
+  "name": "screshot",
+  "version": "2.0.5",
+  "private": true,
+  "description": "Screshot Chrome extension + drawing-tool editor",
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
-    "build": "cross-env NODE_ENV=production webpack",
-    "start": "webpack serve --open",
-    "dev": "webpack serve --mode development --open"
-  },
-  "keywords": [
-    "drawing",
-    "canvas",
-    "html5"
-  ],
-  "author": "vincenthuynh",
-  "license": "ISC",
-  "devDependencies": {
-    "@babel/core": "^7.24.4",
-    "@babel/preset-env": "^7.24.4",
-    "autoprefixer": "^10.4.17",
-    "babel-loader": "^9.1.3",
-    "config": "^3.3.9",
-    "copy-webpack-plugin": "^13.0.0",
-    "cross-env": "^7.0.3",
-    "css-loader": "^6.9.1",
-    "file-loader": "^6.2.0",
-    "html-webpack-plugin": "^5.6.0",
-    "postcss": "^8.4.38",
-    "postcss-loader": "^7.3.3",
-    "sass": "^1.89.0",
-    "sass-loader": "^16.0.5",
-    "style-loader": "^3.3.4",
-    "webpack": "^5.91.0",
-    "webpack-cli": "^5.1.4",
-    "webpack-dev-server": "^4.15.2"
-  },
-  "dependencies": {
-    "feather-icons": "^4.29.2",
-    "lucide": "^0.511.0",
-    "tesseract.js": "^6.0.1"
+    "setup": "npm ci --prefix drawing-tool",
+    "build:tool": "npm --prefix drawing-tool run build",
+    "build:ext": "node scripts/build-extension.mjs",
+    "build": "npm run build:tool && npm run build:ext",
+    "dev": "node scripts/build-extension.mjs --watch",
+    "version": "node scripts/build-extension.mjs --sync-version && git add extension/manifest.json",
+    "publish:cws": "node scripts/publish-cws.mjs"
   }
 }
