@@ -351,6 +351,9 @@ export default class DrawingCore {
   
   _handleKeyPress = () => {
     document.addEventListener("keydown", t => {
+          // Đang gõ chữ (text tool): để Ctrl+A/C/Z, Esc... hoạt động bình thường trong ô nhập
+          if (t.target instanceof HTMLTextAreaElement ||
+              (t.target instanceof HTMLInputElement && t.target.type !== "color")) return;
           if (t.ctrlKey && "KeyP" == t.code) {
               document.getElementById("pencil").click()
           }

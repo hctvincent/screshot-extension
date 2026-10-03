@@ -23,8 +23,7 @@ export class TextTool {
     // Các phần tử DOM được quản lý
     textWrapper = null;
     textarea = null;
-    spanCalc = null; // Helper để tính toán kích thước
-    ulCalc = null;   // Helper cho nhiều dòng
+    measureCtx = document.createElement('canvas').getContext('2d'); // đo chữ, không cần DOM
 
     // Hằng số và cài đặt font
     FONT_FAMILY = 'Helvetica';
@@ -117,30 +116,27 @@ export class TextTool {
             margin: '0',
             backgroundColor: 'rgba(255, 255, 255, 0.7)',
             cursor: 'text',
-            overflowY: 'hidden',
+            overflow: 'hidden',
             resize: 'none',
             boxSizing: 'border-box',
             outline: 'none',
-        });
-        this.textarea.rows = 2;
-        this.textarea.spellcheck = false;
-
-        this.spanCalc = document.createElement('span');
-        Object.assign(this.spanCalc.style, {
-            visibility: 'hidden',
-            position: 'absolute',
+            // Không tự xuống dòng: chỉ xuống dòng khi người dùng nhấn Enter,
+            // giống hệt cách chữ được vẽ lên canvas.
             whiteSpace: 'pre',
+            display: 'block',
         });
+        this.textarea.wrap = 'off';
+        this.textarea.spellcheck = false;
 
         this.textWrapper.appendChild(this.textarea);
         document.body.appendChild(this.textWrapper);
-        document.body.appendChild(this.spanCalc);
 
         this._applyStylesToTextarea();
         this._updateTextareaSize();
         this.textarea.focus();
-        this.textarea.addEventListener('keyup', this._onTextareaKeyUp);
-        this.textarea.addEventListener('keydown', this._onTextareaKeyDown);
+        // 'input' chạy ngay khi nội dung đổi, trước khi trình duyệt vẽ frame,
+        // nên textarea luôn đủ rộng cho ký tự mới => không bị giật/chớp.
+        this.textarea.addEventListener('input', this._updateTextareaSize);
         this.textWrapper.addEventListener('mousedown', this._onTextWrapperMouseDown);
     }
 
@@ -152,60 +148,25 @@ export class TextTool {
         this.textarea.style.lineHeight = `${this.actualLineHeightPx}px`;
         this.textarea.style.color = this.core.strokeStyle;
         
-        if (this.spanCalc) this.spanCalc.style.font = fontStyle;
     }
 
     _updateTextareaSize = () => {
-        if (!this.textarea || !this.spanCalc) return;
+        if (!this.textarea) return;
 
-        const currentFont = `${this.currentFontSizePx}px ${this.FONT_FAMILY}`;
-        this.spanCalc.style.font = currentFont;
+        this.measureCtx.font = `${this.currentFontSizePx}px ${this.FONT_FAMILY}`;
+        const lines = (this.textarea.value || ' ').split('\n');
+        const maxWidth = Math.max(...lines.map((line) => this.measureCtx.measureText(line || ' ').width));
 
-        const textToMeasure = this.textarea.value || this.textarea.placeholder || "Wg";
-        const lines = textToMeasure.split('\n');
-        let maxWidth = 0;
-
-        if (lines.length > 1) {
-            if (!this.ulCalc || !this.ulCalc.parentNode) {
-                this.ulCalc = document.createElement('ul');
-                Object.assign(this.ulCalc.style, {
-                    visibility: 'hidden', position: 'absolute', padding: '0', margin: '0', listStyle: 'none'
-                });
-                document.body.appendChild(this.ulCalc);
-            }
-            this.ulCalc.style.font = currentFont;
-            this.ulCalc.innerHTML = '';
-
-            lines.forEach(line => {
-                const li = document.createElement('li');
-                li.style.font = currentFont;
-                li.style.whiteSpace = 'pre';
-                li.textContent = line || " ";
-                this.ulCalc.appendChild(li);
-                if (li.clientWidth > maxWidth) maxWidth = li.clientWidth;
-            });
-        } else {
-            this.spanCalc.textContent = lines[0] || " ";
-            maxWidth = this.spanCalc.clientWidth;
-        }
-        
         const totalPaddingBorder = (this.TEXTAREA_INTERNAL_PADDING_PX * 2) + (this.TEXTAREA_BORDER_PX * 2);
-        this.textarea.style.width = `${maxWidth + totalPaddingBorder + 5}px`;
-        const targetHeight = (lines.length * this.actualLineHeightPx) + totalPaddingBorder;
-        this.textarea.style.height = `${targetHeight}px`;
-        this.textarea.rows = Math.max(2, lines.length);
+        // Chừa thêm chỗ cho caret + ký tự kế tiếp để không bao giờ bị tràn trong lúc gõ.
+        const caretRoom = Math.ceil(this.currentFontSizePx * 0.6);
+        this.textarea.style.width = `${Math.ceil(maxWidth) + totalPaddingBorder + caretRoom}px`;
+        this.textarea.style.height = `${(lines.length * this.actualLineHeightPx) + totalPaddingBorder}px`;
+        this.textarea.scrollLeft = 0;
+        this.textarea.scrollTop = 0;
     }
 
     // --- Các Event Handlers nội bộ cho DOM elements ---
-
-    _onTextareaKeyUp = () => {
-        this._updateTextareaSize();
-    }
-
-    _onTextareaKeyDown = () => {
-        // Sử dụng setTimeout để đảm bảo giá trị của textarea đã được cập nhật
-        setTimeout(this._updateTextareaSize, 0);
-    }
 
     _onTextWrapperMouseDown = (e) => {
         if (e.target === this.textarea) return;
@@ -247,12 +208,12 @@ export class TextTool {
             // Commit có thể đến từ nút menu (không qua sự kiện canvas) hoặc sau khi zoom,
             // nên đồng bộ lại tỉ lệ và lấy vị trí textarea so với canvas ngay lúc này.
             const canvasRect = this.core.syncTempTransform();
-            const wrapperRect = this.textWrapper.getBoundingClientRect();
-            this.canvasX = wrapperRect.left - canvasRect.left;
-            this.canvasY = wrapperRect.top - canvasRect.top;
+            const textareaRect = this.textarea.getBoundingClientRect();
+            const inset = this.TEXTAREA_BORDER_PX + this.TEXTAREA_INTERNAL_PADDING_PX;
             const textToDraw = this.textarea.value;
-            const drawX = this.canvasX + this.WRAPPER_PADDING_PX + this.TEXTAREA_BORDER_PX + this.TEXTAREA_INTERNAL_PADDING_PX;
-            const drawY = this.canvasY + this.WRAPPER_PADDING_PX + this.TEXTAREA_BORDER_PX + this.TEXTAREA_INTERNAL_PADDING_PX;
+            // Góc trên-trái vùng chữ của textarea, quy về toạ độ canvas.
+            const drawX = textareaRect.left - canvasRect.left + inset;
+            const drawY = textareaRect.top - canvasRect.top + inset;
             
             this._drawTextOnCanvas(textToDraw, drawX, drawY);
             this.core.updateImage();
@@ -263,34 +224,33 @@ export class TextTool {
 
     _removeEditorElements() {
         if (this.textarea) {
-            this.textarea.removeEventListener('keyup', this._onTextareaKeyUp);
-            this.textarea.removeEventListener('keydown', this._onTextareaKeyDown);
+            this.textarea.removeEventListener('input', this._updateTextareaSize);
         }
         if (this.textWrapper) {
             this.textWrapper.removeEventListener('mousedown', this._onTextWrapperMouseDown);
             this.textWrapper.parentNode?.removeChild(this.textWrapper);
             this.textWrapper = null;
         }
-        if (this.spanCalc) {
-            this.spanCalc.parentNode?.removeChild(this.spanCalc);
-            this.spanCalc = null;
-        }
-        if (this.ulCalc) {
-            this.ulCalc.parentNode?.removeChild(this.ulCalc);
-            this.ulCalc = null;
-        }
         this.textarea = null;
     }
 
     _drawTextOnCanvas(text, x, y) {
         const lines = text.split('\n');
+        const font = `${this.currentFontSizePx}px ${this.FONT_FAMILY}`;
         this.context.save();
-        this.context.font = `${this.currentFontSizePx}px ${this.FONT_FAMILY}`;
+        this.context.font = font;
         this.context.fillStyle = this.core.strokeStyle;
-        this.context.textBaseline = 'top';
+        this.context.textBaseline = 'alphabetic';
+
+        // Textarea đặt baseline theo CSS: mỗi dòng cao lineHeight, phần chữ (ascent + descent
+        // của font) nằm giữa dòng. Tính baseline y hệt vậy để chữ vẽ ra trùng khít chỗ đã gõ.
+        const metrics = this.context.measureText('Hg');
+        const ascent = metrics.fontBoundingBoxAscent;
+        const descent = metrics.fontBoundingBoxDescent;
+        const baselineOffset = (this.actualLineHeightPx - (ascent + descent)) / 2 + ascent;
 
         for (let i = 0; i < lines.length; i++) {
-            this.context.fillText(lines[i], x, y + (i * this.actualLineHeightPx));
+            this.context.fillText(lines[i], x, y + (i * this.actualLineHeightPx) + baselineOffset);
         }
         this.context.restore();
     }
