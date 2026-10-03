@@ -257,7 +257,7 @@ export default class DrawingCore {
     // Đặt left trước rồi mới đo chiều cao: menu có thể xuống dòng khi sát mép phải.
     this.menu.setPosition(region.left, region.top);
     const menuHeight = this.menu.menuElement.offsetHeight;
-    this.menu.setPosition(region.left, region.top - menuHeight - 10);
+    this.menu.setPosition(region.left, region.top - menuHeight);
     this.menu.hasBeenMoved = false;
   };
 
