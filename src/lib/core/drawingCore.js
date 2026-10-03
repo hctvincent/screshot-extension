@@ -1,6 +1,6 @@
 import Tesseract from 'tesseract.js';
 import Croppr from "../croppr";
-import Modal from "../ui/Modal";
+import Modal from "../ui/modal";
 import Notifier from '../ui/notificationManager';
 import {
   PencilTool,

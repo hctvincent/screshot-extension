@@ -1,4 +1,4 @@
-// file: lib/ui/Modal.js
+// file: lib/ui/modal.js
 
 /**
  * A reusable modal component for displaying information and actions.
