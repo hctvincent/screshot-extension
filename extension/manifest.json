@@ -1,31 +1,30 @@
 {
   "update_url": "https://clients2.google.com/service/update2/crx",
-  
-    "name": "Screshot - One click screen capture and editor",
-    "version": "2.0.5",
-    "description": "Capture and edit your screen in one click. Fast, simple, and built for productivity.",
-    "background": {
-      "service_worker": "background.js"
-    },
-    "action": {
-       "default_icon": {
-        "16": "icon16.png",
-        "32": "icon32.png"
-      },
-      "default_title": "Screshot"
-    },
-    "permissions": [
-      "activeTab"
-    ],
-    "manifest_version": 3,
-    "icons": { 
+  "name": "Screshot - One click screen capture and editor",
+  "version": "2.0.6",
+  "description": "Capture and edit your screen in one click. Fast, simple, and built for productivity.",
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_icon": {
       "16": "icon16.png",
-      "32": "icon32.png",
-      "48": "icon48.png",
-      "64": "icon64.png",
-      "128": "icon128.png" 
+      "32": "icon32.png"
     },
-    "commands": {
+    "default_title": "Screshot"
+  },
+  "permissions": [
+    "activeTab"
+  ],
+  "manifest_version": 3,
+  "icons": {
+    "16": "icon16.png",
+    "32": "icon32.png",
+    "48": "icon48.png",
+    "64": "icon64.png",
+    "128": "icon128.png"
+  },
+  "commands": {
     "_execute_action": {
       "suggested_key": {
         "default": "Ctrl+Shift+S"
@@ -33,5 +32,4 @@
       "description": "Activate Screshot"
     }
   }
-  }
-  
+}

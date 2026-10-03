@@ -73,6 +73,11 @@ export class TextTool {
         }
     }
 
+    // Gọi từ core khi người dùng đổi màu: đổi màu chữ đang gõ ngay lập tức
+    onColorChange = () => {
+        this._applyStylesToTextarea();
+    }
+
     // --- Event Handler chính của Canvas ---
 
     mousedown = (ev) => {
@@ -270,11 +275,8 @@ export class TextTool {
             const isColorPicker = clickedTool.querySelector('input[type="color"]');
             const isControlOrMove = clickedTool.classList.contains('control') || clickedTool.classList.contains('move');
 
-            if (isColorPicker) {
-                // Sử dụng setTimeout để đảm bảo core.strokeStyle đã được cập nhật
-                setTimeout(() => this._applyStylesToTextarea(), 0);
-                return;
-            }
+            // Màu được cập nhật qua onColorChange khi người dùng chọn màu
+            if (isColorPicker) return;
             
             if (!isTextToolButton && !isControlOrMove) {
                 this._commitText();

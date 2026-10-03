@@ -317,12 +317,16 @@ export default class DrawingCore {
     });
     const colorInput = document.getElementById("inputColor");
     if (colorInput) {
-      colorInput.addEventListener("change", (e) => {
+      // 'input' chạy liên tục khi người dùng đang chọn màu; 'change' chỉ chạy khi đóng bảng
+      // chọn màu (Chrome), nên nghe cả hai để màu được áp dụng ngay.
+      const onColor = (e) => {
         this.strokeStyle = e.target.value;
         if (this.tool && typeof this.tool.onColorChange === "function") {
           this.tool.onColorChange(this.strokeStyle);
         }
-      });
+      };
+      colorInput.addEventListener("input", onColor);
+      colorInput.addEventListener("change", onColor);
     }
   };
 
