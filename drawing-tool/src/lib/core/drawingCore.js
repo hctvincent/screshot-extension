@@ -22,7 +22,7 @@ export default class DrawingCore {
     this.cStep = -1;
     this.cPushArray = [];
     this.strokeStyle = "#ff0000";
-    this.lineWidth = 8;
+    this.lineWidth = 5;
     this.toolSizeIndicatorTimeout = null;
     this.tools = {
       pencil: PencilTool,
@@ -212,7 +212,7 @@ export default class DrawingCore {
         if(cropprHandleContainer) cropprHandleContainer[0].classList.add('is-hidden');
         this._cropprDisplaySize = this._getCropprDisplaySize(instance);
         this._setCropValue(instance.getValue("real"));
-        instance.cropperEl.addEventListener("dblclick", () => this.selectAll(instance));
+        instance.cropperEl.addEventListener("dblclick", () => this.toggleSelectAll(instance));
         if (this.isTallImage) setTimeout(() => this.selectAll(instance), 0);
       },
       onCropEnd: (data) => {
@@ -250,9 +250,38 @@ export default class DrawingCore {
   // Chọn toàn bộ ảnh (double-click, hoặc tự động với ảnh chụp cả trang).
   selectAll = (cropper = this.cropper) => {
     const { width, height } = cropper.imageEl.getBoundingClientRect();
-    cropper.box.set(0, 0, width, height);
+    this._applyCropBox(cropper, 0, 0, width, height);
+  };
+
+  // Double-click: chọn toàn bộ ảnh; double-click lần nữa trả về vùng đã chọn trước đó.
+  // Vùng cũ lưu theo tỉ lệ ảnh nên vẫn đúng nếu cửa sổ đổi kích thước giữa hai lần.
+  toggleSelectAll = (cropper = this.cropper) => {
+    const { width, height } = cropper.imageEl.getBoundingClientRect();
+    const box = cropper.box;
+    const isFull = box.x1 <= 1 && box.y1 <= 1 && box.x2 >= width - 1 && box.y2 >= height - 1;
+
+    if (isFull) {
+      const prev = this._boxBeforeSelectAll;
+      if (!prev) return; // chưa từng có vùng chọn riêng để quay lại
+      this._boxBeforeSelectAll = null;
+      this._applyCropBox(cropper, prev.x1 * width, prev.y1 * height, prev.x2 * width, prev.y2 * height);
+      return;
+    }
+
+    // Chỉ nhớ vùng chọn thật (không nhớ vùng rỗng lúc mới mở editor).
+    this._boxBeforeSelectAll =
+      box.width() >= 10 && box.height() >= 10
+        ? { x1: box.x1 / width, y1: box.y1 / height, x2: box.x2 / width, y2: box.y2 / height }
+        : null;
+    this._applyCropBox(cropper, 0, 0, width, height);
+  };
+
+  _applyCropBox = (cropper, x1, y1, x2, y2) => {
+    cropper.box.set(x1, y1, x2, y2);
     cropper.redraw();
     cropper.options.onCropEnd(cropper.getValue());
+    // onCropEnd không dời thanh công cụ khi nó đã hiện, nên đặt lại theo vùng mới.
+    requestAnimationFrame(this._positionMenuAtRegion);
   };
 
   _handleScroll = () => {
@@ -377,59 +406,52 @@ export default class DrawingCore {
   };
 
   
+  // Phím tắt của editor: Ctrl+Alt+<phím> (Mac: Control+Option). Không dùng Ctrl+<phím> đơn vì
+  // Chrome giữ riêng nhiều tổ hợp (Ctrl+T, Ctrl+L, Ctrl+N...) và trang không nhận được chúng.
+  // So khớp theo e.code để Option/AltGr không làm đổi ký tự.
+  static SHORTCUTS = {
+    KeyP: { id: "pencil" },
+    KeyH: { id: "marker" },
+    KeyL: { id: "line" },
+    KeyA: { id: "lineArrow" },
+    KeyR: { id: "rect" },
+    KeyE: { id: "ellipse" },
+    KeyT: { id: "text" },
+    KeyB: { id: "blur" },
+    KeyK: { id: "inputColor" },
+    KeyZ: { action: "undo" },
+    KeyY: { action: "redo" },
+    KeyC: { id: "copy" },
+    KeyS: { id: "save" },
+  };
+
+  // Ctrl+Z / Ctrl+Y / Ctrl+C / Ctrl+S vẫn hoạt động như mọi ứng dụng khác.
+  static STANDARD_SHORTCUTS = new Set(["KeyZ", "KeyY", "KeyC", "KeyS"]);
+
   _handleKeyPress = () => {
-    document.addEventListener("keydown", t => {
-          // Đang gõ chữ (text tool): để Ctrl+A/C/Z, Esc... hoạt động bình thường trong ô nhập
-          if (t.target instanceof HTMLTextAreaElement ||
-              (t.target instanceof HTMLInputElement && t.target.type !== "color")) return;
-          if (t.ctrlKey && "KeyP" == t.code) {
-              document.getElementById("pencil").click()
-          }
-          if (t.ctrlKey && "KeyX" == t.code) {
-              document.getElementById("marker").click()
-          }
-          if (t.ctrlKey && "KeyL" == t.code) {
-              document.getElementById("line").click()
-          }
-          if (t.ctrlKey && "KeyA" == t.code) {
-              document.getElementById("lineArrow").click()
-          }
-          if (t.ctrlKey && "KeyU" == t.code) {
-              document.getElementById("rect").click()
-          }
-          if (t.ctrlKey && "KeyE" == t.code) {
-              document.getElementById("ellipse").click()
-          }
-          if (t.ctrlKey && "KeyT" == t.code) {
-              document.getElementById("text").click()
-          }
-          if (t.ctrlKey && "KeyB" == t.code) {
-              document.getElementById("blur").click()
-          }
-          if (t.ctrlKey && "KeyI" == t.code) {
-              document.getElementById("inputColor").click()
-          }
-          if (t.ctrlKey && "KeyZ" == t.code && this.cUndo(),
-          t.ctrlKey && "KeyY" == t.code && this.cRedo(),
-          t.ctrlKey && "KeyG" == t.code) {
-              //document.getElementById("link").click()
-          }
-          if (t.ctrlKey && "KeyO" == t.code) {
-              document.getElementById("view").click()
-          }
-          if (t.ctrlKey && "KeyC" == t.code) {
-              document.getElementById("copy").click()
-          }
-          if (t.ctrlKey && "KeyS" == t.code) {
-              document.getElementById("save").click()
-          }
-          if ("Escape" == t.code) {
-              document.getElementById("close").click()
-          }
+    document.addEventListener("keydown", (e) => {
+      // Đang gõ chữ (text tool): để Ctrl+A/C/Z, Esc... hoạt động bình thường trong ô nhập
+      if (e.target instanceof HTMLTextAreaElement ||
+          (e.target instanceof HTMLInputElement && e.target.type !== "color")) return;
+
+      if (e.code === "Escape") {
+        document.getElementById("close").click();
+        return;
       }
-      , !1)
-    
-  }
+      if (!e.ctrlKey || e.shiftKey || e.metaKey) return;
+      const shortcut = DrawingCore.SHORTCUTS[e.code];
+      if (!shortcut) return;
+      const isCtrlAlt = e.altKey;
+      const isStandard = !e.altKey && DrawingCore.STANDARD_SHORTCUTS.has(e.code);
+      if (!isCtrlAlt && !isStandard) return;
+
+      e.preventDefault();
+      if (shortcut.action === "undo") this.cUndo();
+      else if (shortcut.action === "redo") this.cRedo();
+      else document.getElementById(shortcut.id)?.click();
+    });
+  };
+
   _handleUndoRedo = (id) => {
     if (id === "undo") this.cUndo();
     else this.cRedo();

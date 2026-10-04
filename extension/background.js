@@ -64,9 +64,21 @@ async function runInTab(tabId, func, args = []) {
 // và thanh không bao giờ lọt vào ảnh. Chỉ ở đoạn cuối thanh mới trượt xuống trước khi chụp.
 function pagePrepare() {
   const html = document.documentElement;
-  const state = { scrollX: window.scrollX, scrollY: window.scrollY, overflow: html.style.overflow, hidden: [], cancelled: false };
+  const body = document.body;
+  const state = {
+    scrollX: window.scrollX,
+    scrollY: window.scrollY,
+    overflow: html.style.overflow,
+    // Trang có CSS "scroll-behavior: smooth" sẽ biến mỗi scrollTo thành một chuyển động kéo dài;
+    // vị trí ghi nhận sẽ lệch với vị trí lúc chụp và các đoạn bị ghép sai. Tắt trong lúc chụp.
+    scrollBehavior: [html.style.scrollBehavior, body ? body.style.scrollBehavior : ""],
+    hidden: [],
+    cancelled: false,
+  };
   window.__screshot = state;
   html.style.overflow = "hidden";
+  html.style.setProperty("scroll-behavior", "auto", "important");
+  if (body) body.style.setProperty("scroll-behavior", "auto", "important");
   const height = Math.max(html.scrollHeight, document.body ? document.body.scrollHeight : 0);
 
   // Host trong suốt phủ cả màn hình để chặn chuột/chạm; gắn vào <html> (không phải <body>)
@@ -115,20 +127,30 @@ function pagePrepare() {
 }
 
 // Cuộn mượt tới y (easing) thay vì nhảy cóc, rồi đợi trình duyệt vẽ xong.
+// Mỗi bước dùng behavior "instant" để CSS scroll-behavior của trang không can thiệp,
+// và chỉ trả về khi vị trí cuộn đã đứng yên (vị trí trả về phải đúng với ảnh sẽ chụp).
 function pageScrollTo(y) {
   const state = window.__screshot;
+  const jump = (top) => window.scrollTo({ top, left: 0, behavior: "instant" });
   const from = window.scrollY;
   const distance = y - from;
   const duration = Math.min(450, Math.max(200, Math.abs(distance) * 0.4));
   const ease = (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
+  const settle = (resolve, last = NaN, stableFrames = 0, frames = 0) =>
+    requestAnimationFrame(() => {
+      const now = window.scrollY;
+      const stable = now === last ? stableFrames + 1 : 0;
+      if (stable >= 2 || frames > 60) resolve({ y: now, cancelled: state.cancelled });
+      else settle(resolve, now, stable, frames + 1);
+    });
   return new Promise((resolve) => {
     const start = performance.now();
     const tick = (now) => {
       const t = Math.min(1, (now - start) / duration);
-      window.scrollTo(0, from + distance * ease(t));
+      jump(from + distance * ease(t));
       if (t < 1) return requestAnimationFrame(tick);
-      window.scrollTo(0, y);
-      requestAnimationFrame(() => requestAnimationFrame(() => resolve({ y: window.scrollY, cancelled: state.cancelled })));
+      jump(y);
+      settle(resolve);
     };
     if (distance === 0) tick(start + duration);
     else requestAnimationFrame(tick);
@@ -171,7 +193,10 @@ function pageRestore() {
     state.overlay.host.remove();
   }
   document.documentElement.style.overflow = state.overflow;
-  window.scrollTo(state.scrollX, state.scrollY);
+  // Về lại vị trí cũ ngay lập tức, rồi mới trả lại scroll-behavior gốc của trang.
+  window.scrollTo({ top: state.scrollY, left: state.scrollX, behavior: "instant" });
+  document.documentElement.style.scrollBehavior = state.scrollBehavior[0];
+  if (document.body) document.body.style.scrollBehavior = state.scrollBehavior[1];
   delete window.__screshot;
 }
 

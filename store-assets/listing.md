@@ -3,10 +3,10 @@
 Paste these into the Developer Dashboard → Store listing. The name and short description come from `extension/manifest.json`.
 
 ## Name (66/75)
-Screshot – Screenshot Tool & Full Page Capture with Annotate, Blur
+Screshot – Screenshot Tool with Annotate, Blur & Full Page Capture
 
 ## Short description (103/132)
-Screenshot any page or the full page, then crop, annotate and blur it. No account. Nothing is uploaded.
+Free screenshot tool: capture area or visible tab, annotate with text, arrows & blur. Plus full page capture. No sign-up.
 
 ## Detailed description
 

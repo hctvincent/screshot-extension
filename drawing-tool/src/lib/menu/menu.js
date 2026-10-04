@@ -215,21 +215,21 @@ export default class Menu {
     _getDefaultMenuConfig() {
         return [
             { id: 'move', title: 'Move', type: 'move', icon: icon(Move) },
-            { id: 'pencil', title: 'Pencil', type: 'tool', icon: icon(Pencil) },
-            { id: 'line', title: 'Line', type: 'tool', icon: icon(PenLine) },
-            { id: 'marker', title: 'Marker', type: 'tool', icon: icon(Highlighter) },
-            { id: 'lineArrow', title: 'Line Arrow', type: 'tool', icon: icon(MoveUpRight) },
-            { id: 'rect', title: 'Rect', type: 'tool', icon: icon(Square) },
-            { id: 'ellipse', title: 'Ellipse', type: 'tool', icon: icon(Circle) },
-            { id: 'text', title: 'Text', type: 'tool', icon: icon(Type) },
-            { id: 'blur', title: 'Blur (hide sensitive info)', type: 'tool', icon: icon(EyeOff) },
+            { id: 'pencil', title: 'Pencil (Ctrl+Alt+P)', type: 'tool', icon: icon(Pencil) },
+            { id: 'line', title: 'Line (Ctrl+Alt+L)', type: 'tool', icon: icon(PenLine) },
+            { id: 'marker', title: 'Marker (Ctrl+Alt+H)', type: 'tool', icon: icon(Highlighter) },
+            { id: 'lineArrow', title: 'Line Arrow (Ctrl+Alt+A)', type: 'tool', icon: icon(MoveUpRight) },
+            { id: 'rect', title: 'Rect (Ctrl+Alt+R)', type: 'tool', icon: icon(Square) },
+            { id: 'ellipse', title: 'Ellipse (Ctrl+Alt+E)', type: 'tool', icon: icon(Circle) },
+            { id: 'text', title: 'Text (Ctrl+Alt+T)', type: 'tool', icon: icon(Type) },
+            { id: 'blur', title: 'Blur (hide sensitive info) (Ctrl+Alt+B)', type: 'tool', icon: icon(EyeOff) },
             // It's better to create the color input with a label for accessibility
-            { id: 'color-picker', title: 'Color', type: 'color', value: `<label for="inputColor" class="color-picker-label">${icon(Palette)}</label><input type="color" value="#ff0000" id="inputColor">`},
-            { id: 'undo', title: 'Undo', type: 'control', icon: icon(Undo2) },
-            { id: 'redo', title: 'Redo', type: 'control', icon: icon(Redo2) },
-            { id: 'save', title: 'Save', type: 'action', icon: icon(Download) },
-            { id: 'copy', title: 'Copy to Clipboard', type: 'action', icon: icon(Copy) },
-            { id: 'close', title: 'Close', type: 'close', icon: icon(X) }
+            { id: 'color-picker', title: 'Color (Ctrl+Alt+K)', type: 'color', value: `<label for="inputColor" class="color-picker-label">${icon(Palette)}</label><input type="color" value="#ff0000" id="inputColor">`},
+            { id: 'undo', title: 'Undo (Ctrl+Alt+Z)', type: 'control', icon: icon(Undo2) },
+            { id: 'redo', title: 'Redo (Ctrl+Alt+Y)', type: 'control', icon: icon(Redo2) },
+            { id: 'save', title: 'Save (Ctrl+Alt+S)', type: 'action', icon: icon(Download) },
+            { id: 'copy', title: 'Copy to Clipboard (Ctrl+Alt+C)', type: 'action', icon: icon(Copy) },
+            { id: 'close', title: 'Close (Esc)', type: 'close', icon: icon(X) }
         ];
     }
 }
