@@ -134,32 +134,7 @@ p:last-child {
   left: 0;
  }
  
-.drawing-menu {
-  padding: 0;
-  background: white;
-  position: absolute;
-  margin: 0;
-  z-index: 100;
-  li {
-    list-style: none;
-    float: left;
-    a {
-      cursor: pointer;
-      padding: 5px 10px;
-      user-select: none; 
-      -moz-user-select: none; 
-     -webkit-user-select: none;
-     &.active {
-      span {
-        color: red;
-        &:before{
-          color: red;
-        }
-      }
-     }
-    }
-  }
-}
+// Toolbar styles live in menu.scss.
 
 // Canvas giữ độ phân giải gốc của ảnh; kích thước hiển thị theo khung ảnh của croppr
 // để luôn khớp với ảnh khi đổi màn hình / zoom.

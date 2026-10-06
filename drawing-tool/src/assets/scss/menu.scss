@@ -1,129 +1,145 @@
+// Editor toolbar. Icons: 20×20 on a 20px grid (see lib/menu/icons.js), buttons 32×32.
+// Colors follow the Screshot brand (screshot.com): slate neutrals, brand blue for the active tool.
 
+$surface: #ffffff;
+$border: #e2e8f0;      // slate-200
+$icon: #334155;        // slate-700
+$icon-muted: #94a3b8;  // slate-400
+$hover: #f1f5f9;       // slate-100
+$pressed: #e2e8f0;     // slate-200
+$brand: #1f57d6;       // brand-600
+$brand-tint: #eff5ff;  // brand-50
+$brand-ring: #bfd6fe;  // brand-200
+$focus: #5e93f8;       // brand-400
 
-/* ----- Menu Container ----- */
 .drawing-menu {
   position: absolute;
-  background-color: #ffffff;
-  border-radius: 4px; /* Giảm bo góc một chút */
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0,0,0,0.08); /* Giảm bóng đổ */
-  padding: 2px; /* Giảm padding bên trong menu */
-  list-style: none;
-  margin: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px; /* Giảm khoảng cách giữa các item */
   z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  background: $surface;
+  border: 1px solid $border;
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.12);
   user-select: none;
-}
 
-/* ----- Menu Items (li) ----- */
-.drawing-menu .toolSelect {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
+  .toolSelect {
+    display: flex;
+  }
 
-/* ----- Menu Links (a) ----- */
-.drawing-menu .toolSelect a {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;  /* << GIẢM KÍCH THƯỚC NÚT */
-  height: 32px; /* << GIẢM KÍCH THƯỚC NÚT */
-  border-radius: 4px; /* Giảm bo góc nút */
-  background-color: #f0f0f0;
-  color: #333;
-  cursor: pointer;
-  transition: background-color 0.2s ease, transform 0.1s ease;
-  text-decoration: none;
-  border: 1px solid transparent;
-  padding: 02px;
-}
+  // Thin divider between groups.
+  .separator {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
+    background: $border;
+  }
 
-/* Styling cho SVG icons bên trong <a> */
-.drawing-menu .toolSelect a svg {
-  width: 20px;
-  height: 20px;
-  stroke-width: 1.75; /* nét mảnh hơn cho bộ icon Lucide */
-  stroke: #333;
-  fill: none;
-  pointer-events: none;
-}
+  .toolSelect a {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: $icon;
+    cursor: pointer;
+    text-decoration: none;
+    transition: background-color 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
 
-.drawing-menu .toolSelect a:hover {
-  background-color: #e0e0e0;
-}
-/* Tùy chọn: đổi màu icon khi hover nút
-.drawing-menu .toolSelect a:hover svg {
-  stroke: #000;
-}
-*/
+    // Rendered 1:1 so the 20px grid lands on whole pixels.
+    svg {
+      display: block;
+      width: 20px;
+      height: 20px;
+      flex: none;
+      pointer-events: none;
+    }
 
-.drawing-menu .toolSelect a:active { /* Khi đang nhấn chuột xuống */
-  background-color: #d0d0d0;
-  transform: scale(0.95);
-}
+    &:hover {
+      background: $hover;
+    }
 
-/* ----- Styling cho Tool được chọn (khi thẻ <a> có class "active") ----- */
-.drawing-menu .toolSelect a.tool.active {
-  background-color: #e0e0e0; /* Hoặc màu nền khác cho nút active */
-}
+    &:active {
+      background: $pressed;
+    }
 
-.drawing-menu .toolSelect a.tool.active svg {
-  stroke: #ff0000; /* MÀU ĐỎ CHO ICON CỦA TOOL ĐANG ACTIVE */
-}
+    &:focus-visible {
+      outline: 2px solid $focus;
+      outline-offset: 1px;
+    }
 
+    // Selected drawing tool.
+    &.tool.active {
+      background: $brand-tint;
+      color: $brand;
+      box-shadow: inset 0 0 0 1px $brand-ring;
+    }
+  }
 
-/* ----- Move Icon Specific Styling ----- */
-.drawing-menu .toolSelect a#move {
-  cursor: grab;
-}
-.drawing-menu .toolSelect a#move:active {
-  cursor: grabbing;
-}
-.drawing-menu .toolSelect a#move.active svg {
-  stroke: #333; /* Giữ màu mặc định cho icon move nếu nó có class active */
-}
+  // Drag handle.
+  .toolSelect a#move {
+    width: 24px;
+    color: $icon-muted;
+    cursor: grab;
 
+    &:hover {
+      color: $icon;
+    }
 
-/* ----- Color Input Styling ----- */
-/* Điều chỉnh kích thước cho input màu để phù hợp với menu nhỏ hơn */
-.drawing-menu .toolSelect a.color {
-  padding: 0;
-  background-color: transparent;
-  border: none;
-  /* Đảm bảo thẻ a chứa input màu cũng có kích thước phù hợp */
-  width: 32px;  /* Phù hợp với các nút khác */
-  height: 32px; /* Phù hợp với các nút khác */
-}
-.drawing-menu .toolSelect a.color:hover {
-  background-color: transparent;
+    &:active {
+      cursor: grabbing;
+    }
+  }
+
+  // Close sits apart and reads as secondary.
+  .toolSelect a#close:hover {
+    color: #0f172a;
+  }
+
+  // Color: the swatch is the whole button and always shows the current color.
+  .toolSelect a.color {
+    position: relative;
+    padding: 0;
+  }
 }
 
 #inputColor {
   -webkit-appearance: none;
-  -moz-appearance: none;
   appearance: none;
-  width: 30px;  /* << GIẢM KÍCH THƯỚC INPUT MÀU (nhỏ hơn thẻ a một chút do border) */
-  height: 30px; /* << GIẢM KÍCH THƯỚC INPUT MÀU */
-  background-color: transparent;
-  border: 1px solid #ccc;
-  border-radius: 4px; /* Giảm bo góc input */
+  display: block;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
   cursor: pointer;
-  padding: 0;
-  box-sizing: border-box;
-  /* Căn giữa input trong thẻ <a> nếu thẻ <a> lớn hơn một chút */
-  /* margin: auto; (nếu a.color là flex container và input là flex item) */
-}
-#inputColor::-webkit-color-swatch-wrapper {
-  padding: 0;
-  border-radius: 3px; /* Giảm bo góc swatch */
-}
-#inputColor::-webkit-color-swatch {
-  border: none;
-  border-radius: 3px; /* Giảm bo góc swatch */
-}
-#inputColor::-moz-color-swatch {
-  border: none;
-  border-radius: 3px; /* Giảm bo góc swatch */
+
+  &::-webkit-color-swatch-wrapper {
+    padding: 8px; // 16px swatch centered in the 32px button, same visual weight as the icons
+  }
+
+  &::-webkit-color-swatch {
+    border: 0;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.2), 0 0 0 2px $surface, 0 0 0 3px $border;
+  }
+
+  &::-moz-color-swatch {
+    border: 0;
+    border-radius: 50%;
+  }
+
+  &:focus-visible {
+    outline: 2px solid $focus;
+    outline-offset: 1px;
+  }
 }

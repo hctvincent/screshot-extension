@@ -1,11 +1,4 @@
-import {
-    createElement,
-    Move, Pencil, Highlighter, PenLine, MoveUpRight, Square, Circle, Type,
-    Palette, Undo2, Redo2, Download, Copy, X, EyeOff,
-} from 'lucide';
-
-// Lucide icon -> chuỗi SVG để gán vào innerHTML của nút menu
-const icon = (node) => createElement(node).outerHTML;
+import { ICONS } from './icons';
 
 /**
  * Manages the creation, rendering, and interaction of a draggable toolbar menu.
@@ -57,11 +50,18 @@ export default class Menu {
         // Render menu items
         this.menuConfig.forEach(item => {
             const li = document.createElement('li');
+            if (item.type === 'separator') {
+                li.className = 'separator';
+                li.setAttribute('role', 'separator');
+                this.menuElement.appendChild(li);
+                return;
+            }
             li.className = 'toolSelect';
             
             const a = document.createElement('a');
             a.id = item.id;
             a.title = item.title;
+            a.setAttribute('aria-label', item.title);
             a.className = item.type;
             a.dataset.type = item.type;
             a.innerHTML = item.icon ? item.icon : item.value;
@@ -213,23 +213,29 @@ export default class Menu {
      * @returns {Array<Object>}
      */
     _getDefaultMenuConfig() {
+        const sep = { type: 'separator' };
         return [
-            { id: 'move', title: 'Move', type: 'move', icon: icon(Move) },
-            { id: 'pencil', title: 'Pencil (Ctrl+Alt+P)', type: 'tool', icon: icon(Pencil) },
-            { id: 'line', title: 'Line (Ctrl+Alt+L)', type: 'tool', icon: icon(PenLine) },
-            { id: 'marker', title: 'Marker (Ctrl+Alt+H)', type: 'tool', icon: icon(Highlighter) },
-            { id: 'lineArrow', title: 'Line Arrow (Ctrl+Alt+A)', type: 'tool', icon: icon(MoveUpRight) },
-            { id: 'rect', title: 'Rect (Ctrl+Alt+R)', type: 'tool', icon: icon(Square) },
-            { id: 'ellipse', title: 'Ellipse (Ctrl+Alt+E)', type: 'tool', icon: icon(Circle) },
-            { id: 'text', title: 'Text (Ctrl+Alt+T)', type: 'tool', icon: icon(Type) },
-            { id: 'blur', title: 'Blur (hide sensitive info) (Ctrl+Alt+B)', type: 'tool', icon: icon(EyeOff) },
-            // It's better to create the color input with a label for accessibility
-            { id: 'color-picker', title: 'Color (Ctrl+Alt+K)', type: 'color', value: `<label for="inputColor" class="color-picker-label">${icon(Palette)}</label><input type="color" value="#ff0000" id="inputColor">`},
-            { id: 'undo', title: 'Undo (Ctrl+Alt+Z)', type: 'control', icon: icon(Undo2) },
-            { id: 'redo', title: 'Redo (Ctrl+Alt+Y)', type: 'control', icon: icon(Redo2) },
-            { id: 'save', title: 'Save (Ctrl+Alt+S)', type: 'action', icon: icon(Download) },
-            { id: 'copy', title: 'Copy to Clipboard (Ctrl+Alt+C)', type: 'action', icon: icon(Copy) },
-            { id: 'close', title: 'Close (Esc)', type: 'close', icon: icon(X) }
+            { id: 'move', title: 'Drag to move the toolbar', type: 'move', icon: ICONS.grip },
+            sep,
+            { id: 'pencil', title: 'Pencil (Ctrl+Alt+P)', type: 'tool', icon: ICONS.pencil },
+            { id: 'line', title: 'Line (Ctrl+Alt+L)', type: 'tool', icon: ICONS.line },
+            { id: 'marker', title: 'Highlighter (Ctrl+Alt+H)', type: 'tool', icon: ICONS.highlighter },
+            { id: 'lineArrow', title: 'Arrow (Ctrl+Alt+A)', type: 'tool', icon: ICONS.arrow },
+            { id: 'rect', title: 'Rectangle (Ctrl+Alt+R)', type: 'tool', icon: ICONS.rect },
+            { id: 'ellipse', title: 'Ellipse (Ctrl+Alt+E)', type: 'tool', icon: ICONS.ellipse },
+            { id: 'text', title: 'Text (Ctrl+Alt+T)', type: 'tool', icon: ICONS.text },
+            { id: 'blur', title: 'Blur sensitive info (Ctrl+Alt+B)', type: 'tool', icon: ICONS.blur },
+            sep,
+            // The swatch itself is the button: it always shows the current color.
+            { id: 'color-picker', title: 'Color (Ctrl+Alt+K)', type: 'color', value: '<input type="color" value="#ff0000" id="inputColor" aria-label="Color">' },
+            sep,
+            { id: 'undo', title: 'Undo (Ctrl+Alt+Z)', type: 'control', icon: ICONS.undo },
+            { id: 'redo', title: 'Redo (Ctrl+Alt+Y)', type: 'control', icon: ICONS.redo },
+            sep,
+            { id: 'copy', title: 'Copy to clipboard (Ctrl+Alt+C)', type: 'action', icon: ICONS.copy },
+            { id: 'save', title: 'Download PNG (Ctrl+Alt+S)', type: 'action', icon: ICONS.download },
+            sep,
+            { id: 'close', title: 'Close (Esc)', type: 'close', icon: ICONS.close },
         ];
     }
 }
