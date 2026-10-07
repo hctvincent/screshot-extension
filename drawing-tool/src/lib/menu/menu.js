@@ -64,7 +64,7 @@ export default class Menu {
             a.setAttribute('aria-label', item.title);
             a.className = item.type;
             a.dataset.type = item.type;
-            a.innerHTML = item.icon ? item.icon : item.value;
+            a.innerHTML = (item.icon ? item.icon : item.value) + (item.label ? `<span>${item.label}</span>` : '');
 
             // Add drag listener specifically to the move handle
             if (item.type === 'move') {
@@ -234,6 +234,7 @@ export default class Menu {
             sep,
             { id: 'copy', title: 'Copy to clipboard (Ctrl+Alt+C)', type: 'action', icon: ICONS.copy },
             { id: 'save', title: 'Download PNG (Ctrl+Alt+S)', type: 'action', icon: ICONS.download },
+            { id: 'share', title: 'Share by link', type: 'action', icon: ICONS.share, label: 'Share' },
             sep,
             { id: 'close', title: 'Close (Esc)', type: 'close', icon: ICONS.close },
         ];

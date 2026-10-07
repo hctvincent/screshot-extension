@@ -1,6 +1,8 @@
+importScripts("config.js"); // generated at build time: self.SCRESHOT_CONFIG
+
 let id = 1;
 
-const SITE_URL = "https://www.screshot.com";
+const SITE_URL = (self.SCRESHOT_CONFIG && self.SCRESHOT_CONFIG.appUrl) || "https://www.screshot.com";
 const FULL_PAGE_MENU_ID = "capture-full-page";
 const VISIBLE_MENU_ID = "capture-visible";
 
@@ -10,7 +12,8 @@ const CAPTURE_INTERVAL_MS = 550;
 const MAX_FULL_PAGE_HEIGHT = 30000;
 
 // page: "screenshot.html" (editor) hoặc "fullpage.html" (chỉ xem ảnh chụp cả trang).
-function openEditor(screenshotUrl, page = "screenshot.html") {
+// meta: { title, sourceUrl } of the captured tab, used as defaults when sharing.
+function openEditor(screenshotUrl, page = "screenshot.html", meta = {}) {
   const viewTabUrl = chrome.runtime.getURL(page + "?id=" + id++);
   let targetId = null;
 
@@ -19,7 +22,7 @@ function openEditor(screenshotUrl, page = "screenshot.html") {
       chrome.tabs.onUpdated.removeListener(listener);
       chrome.tabs.sendMessage(
         targetId,
-        { action: "setScreenshotUrl", screenshotUrl: screenshotUrl },
+        { action: "setScreenshotUrl", screenshotUrl: screenshotUrl, meta },
         function (response) {
           if (chrome.runtime.lastError) {
             console.log(chrome.runtime.lastError.message);
@@ -42,7 +45,7 @@ function captureVisible(tab) {
       console.log(chrome.runtime.lastError?.message);
       return;
     }
-    openEditor(screenshotUrl);
+    openEditor(screenshotUrl, "screenshot.html", { title: tab.title, sourceUrl: tab.url });
   });
 }
 
@@ -274,7 +277,7 @@ async function captureFullPage(tab) {
     if (blob.size > 40 * 1024 * 1024) {
       blob = await canvas.convertToBlob({ type: "image/jpeg", quality: 0.92 });
     }
-    openEditor(await blobToDataUrl(blob), "fullpage.html");
+    openEditor(await blobToDataUrl(blob), "fullpage.html", { title: tab.title, sourceUrl: tab.url });
   } catch (e) {
     console.log(e.message);
   } finally {
@@ -317,3 +320,107 @@ chrome.runtime.onInstalled.addListener(({ reason }) => {
 chrome.runtime.setUninstallURL(
   `${SITE_URL}/uninstall?v=${chrome.runtime.getManifest().version}`
 );
+
+// --- Upload & Share: account connection and tokens ---------------------------------
+// The background service worker is the only place that holds tokens. Editor and viewer pages
+// ask it for an access token; refreshes are serialized because refresh tokens rotate.
+
+const AUTH_KEY = "screshotAuth";
+const PENDING_KEY = "screshotConnectState";
+
+function deviceName() {
+  const ua = navigator.userAgent;
+  const os = /Windows/.test(ua) ? "Windows" : /Mac OS X/.test(ua) ? "macOS" : /CrOS/.test(ua) ? "ChromeOS" : /Linux/.test(ua) ? "Linux" : "";
+  const browser = /Edg\//.test(ua) ? "Edge" : "Chrome";
+  return `${browser}${os ? " on " + os : ""}`;
+}
+
+async function saveTokens(tokens) {
+  await chrome.storage.local.set({
+    [AUTH_KEY]: {
+      accessToken: tokens.access_token,
+      accessExp: Date.now() + (tokens.expires_in - 60) * 1000, // refresh a minute early
+      refreshToken: tokens.refresh_token,
+    },
+  });
+}
+
+let refreshing = null;
+
+async function getAccessToken() {
+  const { [AUTH_KEY]: auth } = await chrome.storage.local.get(AUTH_KEY);
+  if (!auth) return null;
+  if (auth.accessExp > Date.now()) return auth.accessToken;
+  refreshing ??= (async () => {
+    try {
+      const res = await fetch(`${SITE_URL}/api/v1/auth/extension/refresh`, {
+        method: "POST",
+        credentials: "omit", // Bearer/body auth only: never send the website cookies
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: auth.refreshToken }),
+      });
+      if (res.status === 401) {
+        await chrome.storage.local.remove(AUTH_KEY); // revoked from the dashboard, or expired
+        return null;
+      }
+      if (!res.ok) throw new Error(`refresh failed: ${res.status}`);
+      const tokens = await res.json();
+      await saveTokens(tokens);
+      return tokens.access_token;
+    } finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
+async function startConnect() {
+  const state = crypto.randomUUID().replace(/-/g, "");
+  await chrome.storage.local.set({ [PENDING_KEY]: { state, at: Date.now() } });
+  const url = `${SITE_URL}/extension/connect?ext=${chrome.runtime.id}&state=${state}`;
+  const tab = await chrome.tabs.create({ url });
+  return tab.id;
+}
+
+chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+  if (msg?.type === "screshot:token") {
+    getAccessToken().then(
+      (token) => sendResponse({ token, appUrl: SITE_URL }),
+      () => sendResponse({ token: null, appUrl: SITE_URL, error: "network" })
+    );
+    return true;
+  }
+  if (msg?.type === "screshot:connect-start") {
+    startConnect().then((tabId) => sendResponse({ ok: true, tabId }));
+    return true;
+  }
+  if (msg?.type === "screshot:signout") {
+    chrome.storage.local.remove(AUTH_KEY).then(() => sendResponse({ ok: true }));
+    return true;
+  }
+  return false;
+});
+
+// The connect page on screshot.com hands over a one-time code (externally_connectable).
+chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
+  if (msg?.type !== "screshot:connect") return false;
+  (async () => {
+    if (sender.origin !== SITE_URL) return { ok: false, error: "origin" };
+    const { [PENDING_KEY]: pending } = await chrome.storage.local.get(PENDING_KEY);
+    if (!pending || pending.state !== msg.state || Date.now() - pending.at > 10 * 60 * 1000) return { ok: false, error: "state" };
+    await chrome.storage.local.remove(PENDING_KEY);
+    const res = await fetch(`${SITE_URL}/api/v1/auth/extension/token`, {
+      method: "POST",
+      credentials: "omit",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code: msg.code, device_name: deviceName() }),
+    });
+    if (!res.ok) return { ok: false, error: "exchange" };
+    await saveTokens(await res.json());
+    // Wake up the Share panel that is waiting for the connection.
+    chrome.runtime.sendMessage({ type: "screshot:connected" }).catch(() => {});
+    if (sender.tab?.id) setTimeout(() => chrome.tabs.remove(sender.tab.id).catch(() => {}), 1500);
+    return { ok: true };
+  })().then(sendResponse, () => sendResponse({ ok: false, error: "network" }));
+  return true;
+});

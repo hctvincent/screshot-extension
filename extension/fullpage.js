@@ -4,6 +4,8 @@ const statusEl = document.getElementById("status");
 const info = document.getElementById("info");
 const copyBtn = document.getElementById("copy");
 const downloadBtn = document.getElementById("download");
+const shareBtn = document.getElementById("share");
+let meta = {};
 const toast = document.getElementById("toast");
 
 let imageUrl = null;
@@ -11,6 +13,7 @@ let imageUrl = null;
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === "setScreenshotUrl") {
     sendResponse({ status: "success" });
+    meta = request.meta || {};
     showImage(request.screenshotUrl);
   }
 });
@@ -25,6 +28,7 @@ function showImage(url) {
     info.textContent = `${shot.naturalWidth} × ${shot.naturalHeight} px`;
     copyBtn.disabled = false;
     downloadBtn.disabled = false;
+    shareBtn.disabled = false;
   };
   shot.onerror = () => {
     statusEl.textContent = "Could not load the screenshot. Please try again.";
@@ -60,4 +64,13 @@ copyBtn.addEventListener("click", async () => {
     console.error(e);
     showToast("Could not copy this image. Use Download instead.");
   }
+});
+
+// Share by link (Upload & Share): the stitched image goes to the Share panel.
+shareBtn.addEventListener("click", () => {
+  window.ScreshotShare.open({
+    getBlob: () => fetch(imageUrl).then((r) => r.blob()),
+    title: meta.title ? meta.title + " (full page)" : "Full page",
+    sourceUrl: meta.sourceUrl,
+  });
 });

@@ -458,6 +458,8 @@ export default class DrawingCore {
   };
 
   _handleActions = (id) => {
+    // Share: hand the cropped, annotated image to the host page (the extension's Share panel).
+    if (id === "share") return this.cropImage((canvas) => this.options.onShare?.(canvas));
     if (id === "save") this._saveImage();
     else this._copyImageToClipboard();
   };

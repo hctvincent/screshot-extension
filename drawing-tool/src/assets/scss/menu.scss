@@ -143,3 +143,18 @@ $focus: #5e93f8;       // brand-400
     outline-offset: 1px;
   }
 }
+
+// Share is the primary action of the toolbar: labeled, brand-colored.
+.drawing-menu .toolSelect a#share {
+  width: auto;
+  gap: 6px;
+  padding: 0 12px 0 10px;
+  margin-left: 2px;
+  background: $brand;
+  color: #fff;
+  font: 600 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  &:hover {
+    background: #1a46b0;
+  }
+}

@@ -16,7 +16,8 @@
   "permissions": [
     "activeTab",
     "scripting",
-    "contextMenus"
+    "contextMenus",
+    "storage"
   ],
   "manifest_version": 3,
   "icons": {
