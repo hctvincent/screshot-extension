@@ -459,7 +459,11 @@ export default class DrawingCore {
 
   _handleActions = (id) => {
     // Share: hand the cropped, annotated image to the host page (the extension's Share panel).
-    if (id === "share") return this.cropImage((canvas) => this.options.onShare?.(canvas));
+    if (id === "share") {
+      // Disabled by the Share panel while it encrypts and uploads.
+      if (document.getElementById("share")?.getAttribute("aria-disabled") === "true") return;
+      return this.cropImage((canvas) => this.options.onShare?.(canvas));
+    }
     if (id === "save") this._saveImage();
     else this._copyImageToClipboard();
   };
@@ -475,6 +479,7 @@ export default class DrawingCore {
       el.href = dataURL;
       el.download = `screshot-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.png`;
       el.click();
+      Notifier.show({ message: "Download started", body: el.download, type: "success" });
     });
   };
 
@@ -485,35 +490,20 @@ export default class DrawingCore {
    */
   
   _copyImageToClipboard = () => {
-    // Gọi cropImage và truyền vào một callback để xử lý blob dữ liệu ảnh
+    // One toast from "Copying…" to the result, so a slow copy (large images) never looks stuck.
+    const toast = Notifier.show({ message: "Copying…", type: "loading", duration: null });
+    const fail = (err) => {
+      console.error("Failed to copy image to clipboard:", err);
+      toast.update({ message: "Couldn't copy the image", body: "Use Download instead.", type: "error" });
+    };
     this.cropImage((destCanvas) => {
-      if (!destCanvas) {
-        console.error("Failed to generate image blob for copying.");
-        // (Tùy chọn) Hiển thị thông báo lỗi cho người dùng        
-        Notifier.show({ message: `Failed to copy image to clipboard`, type: 'error' });
-        return;
-      }
-
+      if (!destCanvas) return fail("no canvas");
       destCanvas.toBlob((blob) => {
-        if (!blob) {
-          console.error("Failed to convert canvas to blob");
-          Notifier.show({ message: `Failed to copy image to clipboard`, type: 'error' });
-          return;
-        }
-
-        const item = new ClipboardItem({ [blob.type]: blob });
-
+        if (!blob) return fail("no blob");
         navigator.clipboard
-          .write([item])
-          .then(() => {
-            console.log("Image copied to clipboard successfully!");           
-            Notifier.show({ message: `Copied to clipboard!`, type: 'success' });
-          })
-          .catch((err) => {
-            console.error("Failed to copy image to clipboard:", err);
-            Notifier.show({ message: `Failed to copy image to clipboard`, type: 'error' });
-            
-          });
+          .write([new ClipboardItem({ [blob.type]: blob })])
+          .then(() => toast.update({ message: "Copied to clipboard", body: "Paste it into Slack, Jira or an email.", type: "success" }))
+          .catch(fail);
       }, "image/png");
     });
   };

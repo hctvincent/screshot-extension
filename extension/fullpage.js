@@ -6,7 +6,7 @@ const copyBtn = document.getElementById("copy");
 const downloadBtn = document.getElementById("download");
 const shareBtn = document.getElementById("share");
 let meta = {};
-const toast = document.getElementById("toast");
+const UI = window.ScreshotUI;
 
 let imageUrl = null;
 
@@ -32,14 +32,9 @@ function showImage(url) {
   };
   shot.onerror = () => {
     statusEl.textContent = "Could not load the screenshot. Please try again.";
+    UI.toast({ intent: "error", title: "Could not load the screenshot", body: "Capture the page again." });
   };
   shot.src = url;
-}
-
-function showToast(message) {
-  toast.textContent = message;
-  toast.style.opacity = 1;
-  setTimeout(() => (toast.style.opacity = 0), 1800);
 }
 
 downloadBtn.addEventListener("click", () => {
@@ -48,9 +43,13 @@ downloadBtn.addEventListener("click", () => {
   a.href = imageUrl;
   a.download = `screshot-fullpage-${new Date().toISOString().slice(0, 19).replace(/[T:]/g, "-")}.${ext}`;
   a.click();
+  UI.toast({ intent: "success", title: "Download started", body: a.download });
 });
 
 copyBtn.addEventListener("click", async () => {
+  // Long pages take a moment to convert: one toast goes from "Copying…" to the result.
+  const t = UI.toast({ intent: "progress", title: "Copying…" });
+  copyBtn.disabled = true;
   try {
     // Clipboard chỉ nhận PNG, nên chuyển ảnh JPEG (trang quá dài) sang PNG trước.
     const canvas = document.createElement("canvas");
@@ -59,10 +58,12 @@ copyBtn.addEventListener("click", async () => {
     canvas.getContext("2d").drawImage(shot, 0, 0);
     const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
     await navigator.clipboard.write([new ClipboardItem({ "image/png": blob })]);
-    showToast("Copied to clipboard!");
+    t.update({ intent: "success", title: "Copied to clipboard", body: "Paste it into Slack, Jira or an email." });
   } catch (e) {
     console.error(e);
-    showToast("Could not copy this image. Use Download instead.");
+    t.update({ intent: "error", title: "Couldn't copy this image", body: "It may be too large for the clipboard. Use Download instead." });
+  } finally {
+    copyBtn.disabled = false;
   }
 });
 
@@ -72,5 +73,6 @@ shareBtn.addEventListener("click", () => {
     getBlob: () => fetch(imageUrl).then((r) => r.blob()),
     title: meta.title ? meta.title + " (full page)" : "Full page",
     sourceUrl: meta.sourceUrl,
+    anchor: shareBtn,
   });
 });

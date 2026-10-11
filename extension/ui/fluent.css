@@ -1,0 +1,269 @@
+/*
+ * Screshot extension UI, in the style of Fluent 2 (same tokens as screshot.com): Segoe type,
+ * communication blue, neutral greys, 4/8 px corners, layered shadows. Used by the editor, the
+ * full-page viewer and the Share panel (linked into its shadow root), so everything matches.
+ */
+:root,
+:host {
+  --sf-font: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", -apple-system, BlinkMacSystemFont, "Helvetica Neue", Roboto, Arial, sans-serif;
+  --sf-brand: #0f6cbd;
+  --sf-brand-hover: #115ea3;
+  --sf-brand-pressed: #0f548c;
+  --sf-brand-tint: #ebf3fc;
+  --sf-brand-tint-hover: #cfe4fa;
+  --sf-brand-stroke: #96c6fa;
+  --sf-fg1: #242424;
+  --sf-fg2: #424242;
+  --sf-fg3: #616161;
+  --sf-fg-disabled: #bdbdbd;
+  --sf-bg1: #ffffff;
+  --sf-bg2: #fafafa;
+  --sf-bg3: #f5f5f5;
+  --sf-bg-hover: #f5f5f5;
+  --sf-bg-pressed: #e0e0e0;
+  --sf-stroke1: #d1d1d1;
+  --sf-stroke2: #e0e0e0;
+  --sf-stroke-accessible: #616161;
+  --sf-success: #107c10;
+  --sf-success-bg: #f1faf1;
+  --sf-danger: #c50f1f;
+  --sf-danger-bg: #fdf3f4;
+  --sf-warning: #bc4b09;
+  --sf-warning-bg: #fff9f5;
+  --sf-radius-s: 2px;
+  --sf-radius-m: 4px;
+  --sf-radius-l: 8px;
+  --sf-radius-xl: 12px;
+  --sf-shadow4: 0 0 2px rgba(0, 0, 0, 0.12), 0 2px 4px rgba(0, 0, 0, 0.14);
+  --sf-shadow8: 0 0 2px rgba(0, 0, 0, 0.12), 0 4px 8px rgba(0, 0, 0, 0.14);
+  --sf-shadow16: 0 0 2px rgba(0, 0, 0, 0.12), 0 8px 16px rgba(0, 0, 0, 0.14);
+  --sf-shadow28: 0 0 8px rgba(0, 0, 0, 0.12), 0 14px 28px rgba(0, 0, 0, 0.14);
+  --sf-ease: cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+
+/* --- buttons ------------------------------------------------------------------------------ */
+.sf-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-width: 64px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--sf-stroke1);
+  border-radius: var(--sf-radius-m);
+  background: var(--sf-bg1);
+  color: var(--sf-fg1);
+  font: 600 14px/20px var(--sf-font);
+  white-space: nowrap;
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.1s, border-color 0.1s, color 0.1s;
+}
+.sf-btn:hover { background: var(--sf-bg-hover); border-color: #c7c7c7; }
+.sf-btn:active { background: var(--sf-bg-pressed); }
+.sf-btn.primary { background: var(--sf-brand); border-color: transparent; color: #fff; }
+.sf-btn.primary:hover { background: var(--sf-brand-hover); }
+.sf-btn.primary:active { background: var(--sf-brand-pressed); }
+.sf-btn.subtle { background: transparent; border-color: transparent; }
+.sf-btn.subtle:hover { background: var(--sf-bg-hover); }
+.sf-btn.danger { color: var(--sf-danger); }
+.sf-btn.block { width: 100%; }
+.sf-btn.small { height: 24px; min-width: 0; padding: 0 8px; font-size: 12px; }
+.sf-btn.icon { min-width: 32px; width: 32px; padding: 0; }
+.sf-btn[disabled],
+.sf-btn[aria-disabled="true"] {
+  background: var(--sf-bg3);
+  border-color: var(--sf-stroke2);
+  color: var(--sf-fg-disabled);
+  cursor: not-allowed;
+}
+.sf-btn.primary[disabled] { background: var(--sf-bg3); color: var(--sf-fg-disabled); }
+.sf-btn[aria-busy="true"] { cursor: progress; }
+.sf-btn svg { width: 16px; height: 16px; flex: none; }
+.sf-link {
+  border: 0;
+  padding: 0;
+  background: none;
+  color: var(--sf-brand);
+  font: inherit;
+  cursor: pointer;
+  text-decoration: none;
+}
+.sf-link:hover { text-decoration: underline; color: var(--sf-brand-hover); }
+
+/* Fluent focus: dark stroke with a light gap, keyboard only. */
+.sf-btn:focus-visible,
+.sf-link:focus-visible,
+.sf-input:focus-visible,
+.sf-choice input:focus-visible + .sf-choice-body {
+  outline: 2px solid #000;
+  outline-offset: 1px;
+  box-shadow: 0 0 0 1px #fff;
+}
+
+/* --- inputs ------------------------------------------------------------------------------- */
+.sf-input {
+  width: 100%;
+  min-width: 0;
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--sf-stroke1);
+  border-bottom-color: var(--sf-stroke-accessible);
+  border-radius: var(--sf-radius-m);
+  background: var(--sf-bg1);
+  color: var(--sf-fg1);
+  font: 14px/20px var(--sf-font);
+}
+.sf-input:focus { outline: none; border-bottom-color: var(--sf-brand); box-shadow: inset 0 -1px 0 var(--sf-brand); }
+.sf-input[readonly] { background: var(--sf-bg2); color: var(--sf-fg2); }
+.sf-label { display: block; margin-bottom: 4px; color: var(--sf-fg1); font: 600 14px/20px var(--sf-font); }
+
+/* Radio "cards" (Who can view). */
+.sf-choice { display: block; position: relative; margin-bottom: 4px; cursor: pointer; }
+.sf-choice input { position: absolute; opacity: 0; pointer-events: none; }
+.sf-choice-body {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 8px 10px;
+  border: 1px solid var(--sf-stroke2);
+  border-radius: var(--sf-radius-m);
+  transition: background-color 0.1s, border-color 0.1s;
+}
+.sf-choice:hover .sf-choice-body { background: var(--sf-bg-hover); }
+.sf-choice input:checked + .sf-choice-body { border-color: var(--sf-brand); background: var(--sf-brand-tint); }
+.sf-choice-dot {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  border: 1px solid var(--sf-stroke-accessible);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+}
+.sf-choice input:checked + .sf-choice-body .sf-choice-dot { border-color: var(--sf-brand); }
+.sf-choice input:checked + .sf-choice-body .sf-choice-dot::after { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--sf-brand); }
+.sf-choice-title { display: block; color: var(--sf-fg1); font: 600 14px/20px var(--sf-font); }
+.sf-choice-text { display: block; color: var(--sf-fg3); font: 12px/16px var(--sf-font); }
+.sf-choice[aria-busy="true"] .sf-choice-dot { border-color: transparent; }
+
+/* --- feedback ----------------------------------------------------------------------------- */
+.sf-spinner {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--sf-brand-tint-hover);
+  border-top-color: var(--sf-brand);
+  animation: sf-spin 0.8s linear infinite;
+  vertical-align: -3px;
+}
+.sf-btn.primary .sf-spinner { border-color: rgba(255, 255, 255, 0.35); border-top-color: #fff; }
+.sf-spinner.large { width: 28px; height: 28px; border-width: 3px; }
+@keyframes sf-spin { to { transform: rotate(360deg); } }
+
+.sf-progress { height: 2px; overflow: hidden; border-radius: 1px; background: var(--sf-bg-pressed); }
+.sf-progress > div { height: 100%; width: 0; background: var(--sf-brand); transition: width 0.25s var(--sf-ease); }
+.sf-progress.indeterminate > div { width: 33%; animation: sf-indeterminate 1.2s var(--sf-ease) infinite; }
+@keyframes sf-indeterminate { from { transform: translateX(-100%); } to { transform: translateX(300%); } }
+
+.sf-message {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px 12px;
+  border: 1px solid var(--sf-stroke2);
+  border-radius: var(--sf-radius-m);
+  background: var(--sf-bg2);
+  color: var(--sf-fg1);
+  font: 14px/20px var(--sf-font);
+}
+.sf-message.error { border-color: #eeacb2; background: var(--sf-danger-bg); }
+.sf-message.error svg { color: var(--sf-danger); }
+.sf-message.success { border-color: #9fd89f; background: var(--sf-success-bg); }
+.sf-message.success svg { color: var(--sf-success); }
+.sf-message svg { flex: none; width: 16px; height: 16px; margin-top: 2px; }
+
+.sf-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--sf-radius-m);
+  background: var(--sf-bg3);
+  color: var(--sf-fg2);
+  font: 600 12px/16px var(--sf-font);
+}
+
+/* --- popover / surface -------------------------------------------------------------------- */
+.sf-surface {
+  background: var(--sf-bg1);
+  color: var(--sf-fg1);
+  border-radius: var(--sf-radius-l);
+  box-shadow: var(--sf-shadow16);
+  font: 14px/20px var(--sf-font);
+}
+
+/* --- toasts (ui.js) ----------------------------------------------------------------------- */
+.sf-toaster {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 2147483600;
+  display: flex;
+  flex-direction: column; /* newest at the bottom, nearest the edge */
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.sf-toast {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  min-width: 280px;
+  max-width: min(440px, calc(100vw - 32px));
+  padding: 12px;
+  border-radius: var(--sf-radius-l);
+  background: var(--sf-bg1);
+  color: var(--sf-fg1);
+  box-shadow: var(--sf-shadow8);
+  font: 14px/20px var(--sf-font);
+  pointer-events: auto;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: opacity 0.2s var(--sf-ease), transform 0.2s var(--sf-ease);
+}
+.sf-toast.in { opacity: 1; transform: none; }
+.sf-toast-icon { flex: none; width: 20px; height: 20px; display: grid; place-items: center; }
+.sf-toast-icon svg { width: 20px; height: 20px; }
+.sf-toast.success .sf-toast-icon { color: var(--sf-success); }
+.sf-toast.error .sf-toast-icon { color: var(--sf-danger); }
+.sf-toast.warning .sf-toast-icon { color: var(--sf-warning); }
+.sf-toast.info .sf-toast-icon { color: var(--sf-brand); }
+.sf-toast-main { flex: 1; min-width: 0; }
+.sf-toast-title { font-weight: 600; }
+.sf-toast-body { color: var(--sf-fg2); }
+.sf-toast-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  margin: 0 -2px 0 4px;
+  border: 0;
+  border-radius: var(--sf-radius-m);
+  background: transparent;
+  color: var(--sf-fg3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+.sf-toast-close:hover { background: var(--sf-bg-hover); color: var(--sf-fg1); }
+.sf-toast-close svg { width: 16px; height: 16px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .sf-toast, .sf-progress > div { transition: none; }
+  .sf-spinner, .sf-progress.indeterminate > div { animation-duration: 2.4s; }
+}

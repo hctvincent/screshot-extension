@@ -94,17 +94,17 @@ function pagePrepare() {
   sheet.replaceSync(`
     .bar { position: fixed; left: 0; right: 0; bottom: 0; height: 56px; box-sizing: border-box;
       display: flex; align-items: center; gap: 12px; padding: 0 20px;
-      background: #fff; color: #111827; border-top: 1px solid #e5e7eb; /* không dùng box-shadow: bóng lan ra ngoài dải bị vẽ đè và lọt vào ảnh */
-      font: 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+      background: #fff; color: #242424; border-top: 1px solid #e0e0e0; /* không dùng box-shadow: bóng lan ra ngoài dải bị vẽ đè và lọt vào ảnh */
+      font: 14px/20px "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, sans-serif;
       transition: transform .22s ease-in; }
     .bar.out { transform: translateY(100%); }
-    .track { position: absolute; left: 0; right: 0; top: 0; height: 3px; background: #e0e7ff; }
-    .fill { height: 100%; width: 0; background: #4f46e5; transition: width .4s ease-out; }
-    .spinner { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 3px solid #e0e7ff; border-top-color: #4f46e5;
+    .track { position: absolute; left: 0; right: 0; top: 0; height: 2px; background: #e0e0e0; }
+    .fill { height: 100%; width: 0; background: #0f6cbd; transition: width .4s cubic-bezier(.1,.9,.2,1); }
+    .spinner { width: 18px; height: 18px; flex: none; border-radius: 50%; border: 2px solid #cfe4fa; border-top-color: #0f6cbd;
       animation: spin .8s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .title { font-weight: 600; }
-    .hint { margin-left: auto; color: #6b7280; font-size: 12px; }
+    .hint { margin-left: auto; color: #616161; font-size: 12px; }
   `);
   root.adoptedStyleSheets = [sheet];
   root.innerHTML = `<div class="bar">

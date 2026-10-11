@@ -19,6 +19,8 @@ function setScreenshotUrl(url, meta) {
         getBlob: () => new Promise((resolve) => canvas.toBlob(resolve, "image/png")),
         title: meta.title,
         sourceUrl: meta.sourceUrl,
+        // The panel opens under the toolbar's Share button and follows it if the toolbar moves.
+        anchor: document.getElementById("share"),
       });
     },
   });
