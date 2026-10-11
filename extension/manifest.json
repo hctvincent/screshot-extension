@@ -1,8 +1,8 @@
 {
   "update_url": "https://clients2.google.com/service/update2/crx",
-  "name": "Screshot – Screenshot Tool with Annotate, Blur & Full Page Capture",
-  "version": "2.0.8",
-  "description": "Screenshot tool: capture area or visible tab, annotate with text, arrows & blur. Plus full page capture.",
+  "name": "Screshot – Private Screenshot Tool with Blur, Annotate & Full Page Capture",
+  "version": "2.1.0",
+  "description": "Private screenshot tool: capture area or full page, blur & annotate on your device. Share only by end-to-end encrypted link.",
   "background": {
     "service_worker": "background.js"
   },
