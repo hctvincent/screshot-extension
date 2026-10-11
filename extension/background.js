@@ -321,12 +321,15 @@ chrome.runtime.setUninstallURL(
   `${SITE_URL}/uninstall?v=${chrome.runtime.getManifest().version}`
 );
 
-// --- Upload & Share: account connection and tokens ---------------------------------
+// --- Upload & Share: sign-in and tokens --------------------------------------------
 // The background service worker is the only place that holds tokens. Editor and viewer pages
 // ask it for an access token; refreshes are serialized because refresh tokens rotate.
+//
+// Sign-in is Google only and happens right here (chrome.identity), no detour through the website.
+// The website and the extension in the same browser share one sign-in: screshot.com pages talk to
+// this worker over externally_connectable (see onMessageExternal below).
 
 const AUTH_KEY = "screshotAuth";
-const PENDING_KEY = "screshotConnectState";
 
 function deviceName() {
   const ua = navigator.userAgent;
@@ -335,32 +338,53 @@ function deviceName() {
   return `${browser}${os ? " on " + os : ""}`;
 }
 
-async function saveTokens(tokens) {
+async function readAuth() {
+  const { [AUTH_KEY]: auth } = await chrome.storage.local.get(AUTH_KEY);
+  return auth || null;
+}
+
+async function saveTokens(tokens, account) {
+  const prev = await readAuth();
   await chrome.storage.local.set({
     [AUTH_KEY]: {
       accessToken: tokens.access_token,
       accessExp: Date.now() + (tokens.expires_in - 60) * 1000, // refresh a minute early
       refreshToken: tokens.refresh_token,
+      account: account || prev?.account || null,
     },
   });
 }
 
+/** Tell open editor/viewer pages that the account changed. */
+function broadcast(type) {
+  chrome.runtime.sendMessage({ type }).catch(() => {});
+}
+
+async function clearAuth() {
+  const had = await readAuth();
+  await chrome.storage.local.remove(AUTH_KEY);
+  if (had) broadcast("screshot:signed-out");
+}
+
+const postJson = (path, body, token) =>
+  fetch(`${SITE_URL}/api/v1${path}`, {
+    method: "POST",
+    credentials: "omit", // Bearer/body auth only: never send the website cookies
+    headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+    body: JSON.stringify(body ?? {}),
+  });
+
 let refreshing = null;
 
 async function getAccessToken() {
-  const { [AUTH_KEY]: auth } = await chrome.storage.local.get(AUTH_KEY);
+  const auth = await readAuth();
   if (!auth) return null;
   if (auth.accessExp > Date.now()) return auth.accessToken;
   refreshing ??= (async () => {
     try {
-      const res = await fetch(`${SITE_URL}/api/v1/auth/extension/refresh`, {
-        method: "POST",
-        credentials: "omit", // Bearer/body auth only: never send the website cookies
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh_token: auth.refreshToken }),
-      });
+      const res = await postJson("/auth/extension/refresh", { refresh_token: auth.refreshToken });
       if (res.status === 401) {
-        await chrome.storage.local.remove(AUTH_KEY); // revoked from the dashboard, or expired
+        await clearAuth(); // signed out on the website, revoked from the dashboard, or expired
         return null;
       }
       if (!res.ok) throw new Error(`refresh failed: ${res.status}`);
@@ -374,53 +398,135 @@ async function getAccessToken() {
   return refreshing;
 }
 
-async function startConnect() {
-  const state = crypto.randomUUID().replace(/-/g, "");
-  await chrome.storage.local.set({ [PENDING_KEY]: { state, at: Date.now() } });
-  const url = `${SITE_URL}/extension/connect?ext=${chrome.runtime.id}&state=${state}`;
-  const tab = await chrome.tabs.create({ url });
-  return tab.id;
+/** Store the tokens, then who they belong to (shown in the Share panel and to the website). */
+async function signedIn(tokens) {
+  const me = await fetch(`${SITE_URL}/api/v1/me`, { credentials: "omit", headers: { Authorization: `Bearer ${tokens.access_token}` } })
+    .then((r) => (r.ok ? r.json() : null))
+    .catch(() => null);
+  await saveTokens(tokens, me ? { email: me.email } : null);
+  broadcast("screshot:connected");
+  return me ? { email: me.email } : null;
+}
+
+const b64url = (bytes) => btoa(String.fromCharCode(...new Uint8Array(bytes))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+const randomString = (n = 32) => b64url(crypto.getRandomValues(new Uint8Array(n)));
+
+/**
+ * Google sign-in from the extension: chrome.identity opens Google's own window, Google redirects
+ * to https://<extension-id>.chromiumapp.org/ with a code, and the server exchanges it (it holds
+ * the client secret). PKCE binds the code to this worker; state guards against a swapped response.
+ */
+async function signInWithGoogle() {
+  const config = await fetch(`${SITE_URL}/api/v1/auth/extension/config`, { credentials: "omit" }).then((r) => r.json());
+  if (!config.google_client_id) return { ok: false, error: "unavailable" };
+
+  const redirectUri = chrome.identity.getRedirectURL();
+  const verifier = randomString(32);
+  const challenge = b64url(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  const state = randomString(16);
+  const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+  url.search = new URLSearchParams({
+    client_id: config.google_client_id,
+    redirect_uri: redirectUri,
+    response_type: "code",
+    scope: "openid email profile",
+    state,
+    code_challenge: challenge,
+    code_challenge_method: "S256",
+    prompt: "select_account",
+  }).toString();
+
+  let responseUrl;
+  try {
+    responseUrl = await chrome.identity.launchWebAuthFlow({ url: url.toString(), interactive: true });
+  } catch {
+    return { ok: false, error: "cancelled" }; // window closed, or Google showed an error
+  }
+  const params = new URL(responseUrl).searchParams;
+  if (params.get("state") !== state || !params.get("code")) return { ok: false, error: "cancelled" };
+
+  const res = await postJson("/auth/extension/google", {
+    code: params.get("code"),
+    code_verifier: verifier,
+    redirect_uri: redirectUri,
+    device_name: deviceName(),
+  });
+  if (!res.ok) return { ok: false, error: "exchange" };
+  const account = await signedIn(await res.json());
+  return { ok: true, account };
+}
+
+/** Signs out here and on the website session paired with this extension. */
+async function signOut() {
+  const token = await getAccessToken().catch(() => null);
+  if (token) await postJson("/auth/extension/logout", {}, token).catch(() => {});
+  await clearAuth();
 }
 
 chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
-  if (msg?.type === "screshot:token") {
-    getAccessToken().then(
-      (token) => sendResponse({ token, appUrl: SITE_URL }),
-      () => sendResponse({ token: null, appUrl: SITE_URL, error: "network" })
-    );
+  const reply = (promise) => {
+    promise.then(sendResponse, () => sendResponse({ ok: false, error: "network" }));
     return true;
+  };
+  switch (msg?.type) {
+    case "screshot:token":
+      getAccessToken().then(
+        (token) => sendResponse({ token, appUrl: SITE_URL }),
+        () => sendResponse({ token: null, appUrl: SITE_URL, error: "network" })
+      );
+      return true;
+    case "screshot:account":
+      return reply(readAuth().then((auth) => ({ account: auth ? auth.account || { email: null } : null, appUrl: SITE_URL })));
+    case "screshot:google-signin":
+      return reply(signInWithGoogle());
+    case "screshot:signout":
+      return reply(signOut().then(() => ({ ok: true })));
+    default:
+      return false;
   }
-  if (msg?.type === "screshot:connect-start") {
-    startConnect().then((tabId) => sendResponse({ ok: true, tabId }));
-    return true;
-  }
-  if (msg?.type === "screshot:signout") {
-    chrome.storage.local.remove(AUTH_KEY).then(() => sendResponse({ ok: true }));
-    return true;
-  }
-  return false;
 });
 
-// The connect page on screshot.com hands over a one-time code (externally_connectable).
+// screshot.com pages (and only those: externally_connectable + the origin check) keep the website
+// and the extension signed in to the same account.
 chrome.runtime.onMessageExternal.addListener((msg, sender, sendResponse) => {
-  if (msg?.type !== "screshot:connect") return false;
-  (async () => {
-    if (sender.origin !== SITE_URL) return { ok: false, error: "origin" };
-    const { [PENDING_KEY]: pending } = await chrome.storage.local.get(PENDING_KEY);
-    if (!pending || pending.state !== msg.state || Date.now() - pending.at > 10 * 60 * 1000) return { ok: false, error: "state" };
-    await chrome.storage.local.remove(PENDING_KEY);
-    const res = await fetch(`${SITE_URL}/api/v1/auth/extension/token`, {
-      method: "POST",
-      credentials: "omit",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code: msg.code, device_name: deviceName() }),
-    });
-    if (!res.ok) return { ok: false, error: "exchange" };
-    await saveTokens(await res.json());
-    // Wake up the Share panel that is waiting for the connection.
-    chrome.runtime.sendMessage({ type: "screshot:connected" }).catch(() => {});
-    if (sender.tab?.id) setTimeout(() => chrome.tabs.remove(sender.tab.id).catch(() => {}), 1500);
-    return { ok: true };
-  })().then(sendResponse, () => sendResponse({ ok: false, error: "network" }));
+  const handlers = {
+    // Is the extension here, and who is signed in?
+    "screshot:hello": async () => {
+      const auth = await readAuth();
+      return { ok: true, account: auth ? auth.account || { email: null } : null };
+    },
+    // Website → extension: a signed-in page hands over a one-time code for its account.
+    "screshot:connect": async () => {
+      if (await readAuth()) return { ok: true, already: true }; // never switch accounts silently
+      if (typeof msg.code !== "string") return { ok: false, error: "code" };
+      const res = await postJson("/auth/extension/token", { code: msg.code, device_name: deviceName() });
+      if (!res.ok) return { ok: false, error: "exchange" };
+      return { ok: true, account: await signedIn(await res.json()) };
+    },
+    // Extension → website: a one-time code that signs the page in as this extension's account.
+    "screshot:web-code": async () => {
+      const token = await getAccessToken();
+      if (!token) return { ok: false, error: "signed-out" };
+      const res = await postJson("/auth/web-codes", {}, token);
+      if (res.status === 401) {
+        await clearAuth();
+        return { ok: false, error: "signed-out" };
+      }
+      if (!res.ok) return { ok: false, error: "network" };
+      return { ok: true, code: (await res.json()).code };
+    },
+    // Signed out on the website: sign out here too.
+    "screshot:signout": async () => {
+      await signOut();
+      return { ok: true };
+    },
+  };
+  const handler = handlers[msg?.type];
+  if (!handler) return false;
+  if (sender.origin !== SITE_URL) {
+    sendResponse({ ok: false, error: "origin" });
+    return false;
+  }
+  handler().then(sendResponse, () => sendResponse({ ok: false, error: "network" }));
   return true;
 });

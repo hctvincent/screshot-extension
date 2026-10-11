@@ -1,0 +1,5 @@
+{
+  "note": "Public key only (not a secret). Gives development builds a fixed extension ID so localhost can list it in EXTENSION_IDS.",
+  "id": "afpaajemkkdngkjblpmnmcjhbcidbona",
+  "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAuO3CuWJbAeUmOBUFfWDkyuOvpEysY+F+HKZ9nCOeVxeCQdnIjUetXFTRAcQ8QPO0ZbQXu8KrS2MS4eymWbyEFCDhiIa5V06wuTb3r1vq2uTksLo/a2p0+cXCzeI1n+q3opAejQg9xGLFK32oEWP2HxtqbF5QOHoJJFvsM1+nHfNLvMnzVuz0+aTye16NdinLROFiagXudz/D9mY8BObH52L6EPkyAgobB2Teq8Egn2ah5ef1ZpkEb5CUJx7YjytD+qDzU93l3vp2Dnc2DHa2Jk+e99A1VUOXkVNlMPA8iZrnhkXM2XxSF1GH7n1LDNNTb+W+psKo7IJ1d6a72ppMeQIDAQAB"
+}

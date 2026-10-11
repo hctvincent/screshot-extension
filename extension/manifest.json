@@ -17,7 +17,8 @@
     "activeTab",
     "scripting",
     "contextMenus",
-    "storage"
+    "storage",
+    "identity"
   ],
   "manifest_version": 3,
   "icons": {

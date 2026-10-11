@@ -49,7 +49,14 @@
     .ok { color: #047857; font-size: 12px; margin-left: 8px; }
     a { color: #1f57d6; }
     .row { display: flex; gap: 8px; align-items: center; }
+    .google { gap: 10px; }
+    .google svg { width: 18px; height: 18px; }
+    .account { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid #f1f5f9; font-size: 12px; color: #64748b; }
+    .account b { color: #334155; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .linkbtn { border: 0; background: none; color: #1f57d6; cursor: pointer; font-size: 12px; padding: 0; white-space: nowrap; }
   `;
+
+  const GOOGLE_ICON = `<svg viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="m6.3 14.7 6.6 4.8C14.7 15.1 19 12 24 12c3.1 0 5.8 1.2 7.9 3.1l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-8l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg>`;
 
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
   const send = (msg) => chrome.runtime.sendMessage(msg);
@@ -62,7 +69,7 @@
     }
   }
 
-  async function api(path, { method = "GET", body } = {}) {
+  async function api(path, { method = "GET", body, headers = {} } = {}) {
     const { token, appUrl } = await send({ type: "screshot:token" });
     if (!token) throw new ApiError(401, "unauthorized", "Sign in to share.");
     let res;
@@ -70,7 +77,7 @@
       res = await fetch(`${appUrl}/api/v1${path}`, {
         method,
         credentials: "omit", // Bearer auth only: never send the website cookies
-        headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}) },
+        headers: { Authorization: `Bearer ${token}`, ...(body ? { "Content-Type": "application/json" } : {}), ...headers },
         body: body ? JSON.stringify(body) : undefined,
       });
     } catch {
@@ -105,7 +112,11 @@
       this.host.id = "screshot-share";
       this.root = this.host.attachShadow({ mode: "open" });
       document.body.appendChild(this.host);
-      this.onConnected = (msg) => msg?.type === "screshot:connected" && this.upload();
+      // Signed in from the website in another tab: carry on. Signed out elsewhere: ask again.
+      this.onConnected = (msg) => {
+        if (msg?.type === "screshot:connected" && !this.shot) this.upload();
+        if (msg?.type === "screshot:signed-out" && !this.uploading) this.renderConnect();
+      };
       chrome.runtime.onMessage.addListener(this.onConnected);
       // Keys typed in the panel must not reach the editor (its shortcuts, or Esc closing the tab).
       this.host.addEventListener("keydown", (e) => e.stopPropagation());
@@ -116,11 +127,23 @@
         this.close();
       };
       document.addEventListener("keydown", this.onKey, true);
+      // T16: an upload interrupted by the network resumes by itself.
+      this.onOnline = () => this.waiting && this.upload();
+      window.addEventListener("online", this.onOnline);
+      this.onBeforeUnload = (e) => {
+        if (!this.pending || this.shot) return;
+        e.preventDefault();
+        e.returnValue = "";
+      };
+      window.addEventListener("beforeunload", this.onBeforeUnload);
     }
 
     close() {
       chrome.runtime.onMessage.removeListener(this.onConnected);
       document.removeEventListener("keydown", this.onKey, true);
+      window.removeEventListener("online", this.onOnline);
+      window.removeEventListener("beforeunload", this.onBeforeUnload);
+      clearTimeout(this.retryTimer);
       this.host.remove();
       SharePanel.current = null;
     }
@@ -140,44 +163,95 @@
       this.renderConnect();
     }
 
+    /** Google sign-in right here (no trip to the website). Also signs in screshot.com in this browser. */
     renderConnect(error) {
       this.render(`
         ${error ? `<div class="err" role="alert">${esc(error)}</div>` : ""}
         <p>Sign in to share this screenshot by link. Only screenshots you share are uploaded; everything else stays on your computer.</p>
-        <button class="btn primary block" data-act="connect">Sign in to share</button>`);
-      this.root.querySelector('[data-act="connect"]').onclick = async () => {
-        await send({ type: "screshot:connect-start" });
-        this.render(`<p>Finish signing in in the new tab. Your screenshot uploads automatically once you&#39;re connected.</p>
-          <p class="muted">Closed the tab by mistake?</p>
-          <button class="btn outline" data-act="retry">Open sign-in again</button>`);
-        this.root.querySelector('[data-act="retry"]').onclick = () => send({ type: "screshot:connect-start" });
+        <button class="btn outline block google" data-act="google">${GOOGLE_ICON}Sign in with Google</button>
+        <p class="muted" style="margin:10px 0 0">New to Screshot? This creates your account. You&#39;ll be signed in on screshot.com in this browser too.</p>`);
+      const btn = this.root.querySelector('[data-act="google"]');
+      btn.onclick = async () => {
+        btn.disabled = true;
+        const res = await send({ type: "screshot:google-signin" }).catch(() => ({ ok: false, error: "network" }));
+        if (res?.ok) return this.upload();
+        if (res?.error === "cancelled") return this.renderConnect();
+        this.renderConnect(
+          res?.error === "unavailable"
+            ? "Sign-in isn't available right now. Try again later."
+            : res?.error === "network"
+              ? "You seem to be offline. Check your connection and try again."
+              : "Google sign-in didn't complete. Try again."
+        );
       };
     }
 
+    /**
+     * Resumable upload (T16): create → PUT the file → complete. Progress is kept in this.pending, so a
+     * retry continues where the network dropped instead of starting over, and the Idempotency-Key
+     * means a create that did reach the server is never repeated as a second screenshot.
+     */
     async upload() {
       if (this.uploading) return;
       this.uploading = true;
+      this.waiting = false;
+      clearTimeout(this.retryTimer);
       this.render(`<p>Uploading…</p><div class="bar"><div class="fill"></div></div><p class="muted" aria-live="polite">Preparing</p>`);
       const fill = this.root.querySelector(".fill");
       const label = this.root.querySelector(".muted");
       try {
-        const blob = await this.getBlob();
-        const created = await api("/screenshots", {
-          method: "POST",
-          body: { mime: blob.type || "image/png", size_bytes: blob.size, title: this.title || null, source_url: this.sourceUrl },
-        });
-        await putWithProgress(created.upload.url, blob, created.upload.headers["Content-Type"], (p) => {
-          fill.style.width = `${Math.round(p * 90)}%`;
-          label.textContent = `${Math.round(p * 100)}% of ${(blob.size / 1024 / 1024).toFixed(1)} MB`;
-        });
+        this.blob ??= await this.getBlob();
+        const blob = this.blob;
+        this.pending ??= { key: crypto.randomUUID(), created: null, uploaded: false };
+        const p = this.pending;
+        if (!p.created) {
+          p.created = await api("/screenshots", {
+            method: "POST",
+            headers: { "Idempotency-Key": p.key },
+            body: { mime: blob.type || "image/png", size_bytes: blob.size, title: this.title || null, source_url: this.sourceUrl },
+          });
+        }
+        if (!p.uploaded) {
+          try {
+            await putWithProgress(p.created.upload.url, blob, p.created.upload.headers["Content-Type"], (x) => {
+              fill.style.width = `${Math.round(x * 90)}%`;
+              label.textContent = `${Math.round(x * 100)}% of ${(blob.size / 1024 / 1024).toFixed(1)} MB`;
+            });
+          } catch (err) {
+            // The signed upload URL expired while we were offline: start a fresh upload.
+            if (err.status === 403) this.pending = null;
+            throw err;
+          }
+          p.uploaded = true;
+        }
         label.textContent = "Processing";
-        this.shot = await api(`/screenshots/${created.screenshot.id}/complete`, { method: "POST" });
+        this.shot = await api(`/screenshots/${p.created.screenshot.id}/complete`, { method: "POST" });
+        // Processing runs as a background job in production: wait for it (up to 2 minutes).
+        const deadline = Date.now() + 120_000;
+        while (this.shot.status === "processing") {
+          if (Date.now() > deadline) throw new ApiError(0, "slow", "Still processing. Your link will work in a minute; check the dashboard.");
+          await new Promise((r) => setTimeout(r, 1500));
+          this.shot = await api(`/screenshots/${p.created.screenshot.id}`);
+        }
+        if (this.shot.status === "failed") {
+          this.pending = null; // "Try again" starts a fresh upload
+          throw new ApiError(422, "processing_failed", "The image could not be processed. Try again.");
+        }
+        this.pending = null;
+        this.attempts = 0;
         fill.style.width = "100%";
         const me = await api("/me").catch(() => null);
         if (me?.preferences?.auto_copy_link !== false) await navigator.clipboard.writeText(this.shot.url).then(() => (this.copied = true), () => {});
         await this.loadShares();
+        this.account = (await send({ type: "screshot:account" }).catch(() => null))?.account ?? null;
         this.renderDone();
       } catch (err) {
+        // Expired upload URL (pending was reset above): one immediate fresh attempt, then normal errors.
+        if (err.status === 403 && this.pending === null && !this.retriedExpired) {
+          this.retriedExpired = true;
+          this.uploading = false;
+          return this.upload();
+        }
         this.renderError(err);
       } finally {
         this.uploading = false;
@@ -186,6 +260,7 @@
 
     renderError(err) {
       if (err.status === 401) return this.renderConnect("Your session ended. Sign in again to share.");
+      if (err.code === "offline") return this.renderWaiting();
       const extra =
         err.code === "quota_exceeded"
           ? `<p><a href="#" data-act="dash">Free up space in the dashboard</a></p>`
@@ -199,6 +274,19 @@
         const { appUrl } = await send({ type: "screshot:token" });
         window.open(`${appUrl}/dashboard`, "_blank");
       };
+    }
+
+    /** Offline: wait for the connection, retry on "online" and on a backoff (5s, 15s, 30s, then every 60s). */
+    renderWaiting() {
+      this.waiting = true;
+      this.attempts = (this.attempts ?? 0) + 1;
+      const delay = [5, 15, 30][this.attempts - 1] ?? 60;
+      this.render(`<p><b>You're offline.</b> Your screenshot will upload as soon as the connection is back.</p>
+        <p class="muted" aria-live="polite">Trying again in ${delay} seconds. Keep this tab open.</p>
+        <button class="btn outline" data-act="again">Try now</button>`);
+      this.root.querySelector('[data-act="again"]').onclick = () => this.upload();
+      clearTimeout(this.retryTimer);
+      this.retryTimer = setTimeout(() => this.upload(), delay * 1000);
     }
 
     async loadShares() {
@@ -225,9 +313,14 @@
                ${s.shares?.length ? `<ul>${s.shares.map((x) => `<li><span>${esc(x.email)}</span><button class="x" data-revoke="${x.id}" aria-label="Remove ${esc(x.email)}">✕</button></li>`).join("")}</ul>` : ""}`
             : ""
         }
-        <p class="muted" style="margin-top:14px"><a href="#" data-act="dash">Open in dashboard</a></p>`);
+        <p class="muted" style="margin-top:14px"><a href="#" data-act="dash">Open in dashboard</a></p>
+        <div class="account"><span>Signed in as <b>${esc(this.account?.email || "your account")}</b></span><button class="linkbtn" data-act="signout">Sign out</button></div>`);
 
       const $ = (sel) => this.root.querySelector(sel);
+      $('[data-act="signout"]').onclick = async () => {
+        await send({ type: "screshot:signout" });
+        this.renderConnect();
+      };
       $('[data-act="copy"]').onclick = async () => {
         await navigator.clipboard.writeText(s.url);
         this.copied = true;
